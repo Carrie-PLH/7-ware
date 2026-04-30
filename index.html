@@ -331,6 +331,34 @@
   .filter-btn:hover { border-color: var(--teal); color: var(--teal); }
   .filter-btn.active { background: var(--teal); color: white; border-color: var(--teal); }
 
+  /* LIGHTING TABLE */
+  .lt-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .lt-table th {
+    text-align: left; font-size: 0.7rem; color: var(--gray-mid);
+    text-transform: uppercase; letter-spacing: 0.4px; padding: 0.5rem 0.5rem;
+    border-bottom: 2px solid var(--gray-bg); white-space: nowrap;
+  }
+  .lt-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #f4f4f4; vertical-align: top; }
+  .lt-table tr:hover { background: var(--teal-pale); }
+  .lt-cat-header {
+    background: var(--gray-bg); font-weight: 600; font-size: 0.85rem;
+    padding: 0.6rem 0.5rem; color: var(--teal-deep); text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .lt-cat-header td { border-bottom: 2px solid var(--teal-light); }
+  .lt-total td { font-weight: 600; border-top: 2px solid var(--gray-dark); background: var(--yellow-pale); }
+  .lt-edit-cell {
+    background: none; border: 1px solid transparent; padding: 0.2rem 0.4rem;
+    font-size: 0.82rem; font-family: inherit; color: var(--gray-dark);
+    width: 100%; border-radius: 4px; transition: border-color 0.15s;
+  }
+  .lt-edit-cell:hover { border-color: var(--gray-light); }
+  .lt-edit-cell:focus { border-color: var(--teal); outline: none; background: white; }
+  .lt-mfg { font-size: 0.75rem; color: var(--gray-mid); }
+  .lt-model { font-size: 0.72rem; color: var(--gray-mid); font-family: monospace; }
+  .lt-desc { font-size: 0.78rem; color: var(--gray); line-height: 1.4; }
+  .lt-notes { font-size: 0.75rem; color: var(--orange); font-style: italic; }
+
   /* LIGHTBOX */
   .lightbox {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
@@ -393,6 +421,7 @@
     <div class="nav-tab" data-section="decisions" onclick="showSection('decisions',this)">Decisions <span class="badge" id="decisionBadge" style="display:none">0</span></div>
     <div class="nav-tab" data-section="selections" onclick="showSection('selections',this)">Selections</div>
     <div class="nav-tab" data-section="photos" onclick="showSection('photos',this)">Photos</div>
+    <div class="nav-tab" data-section="lighting" onclick="showSection('lighting',this)">Lighting</div>
     <div class="nav-tab" data-section="contacts" onclick="showSection('contacts',this)">Contacts</div>
   </div>
 
@@ -535,6 +564,39 @@
       <div class="photo-grid" id="photoGrid"><div class="loading-overlay"><span class="spinner"></span></div></div>
     </div>
 
+    <!-- LIGHTING -->
+    <div class="section" id="sec-lighting">
+      <div class="admin-panel builder-only">
+        <h3>Add Lighting Fixture</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group"><label>Category</label>
+            <select class="form-select" id="ltCat"><option value="interior">Interior</option><option value="exterior">Exterior</option></select>
+          </div>
+          <div class="form-group"><label>Location</label><input class="form-input" id="ltLoc" placeholder="e.g., Kitchen, Front entry"></div>
+          <div class="form-group"><label>Qty</label><input class="form-input" id="ltQty" type="number" min="1" value="1"></div>
+          <div class="form-group"><label>Style</label><input class="form-input" id="ltStyle" placeholder="e.g., Sconce, Chandelier"></div>
+          <div class="form-group"><label>Manufacturer</label><input class="form-input" id="ltMfg" placeholder="e.g., Hubbardton Forge"></div>
+          <div class="form-group"><label>Model</label><input class="form-input" id="ltModel" placeholder="Model number"></div>
+        </div>
+        <div class="form-group"><label>Description</label><input class="form-input" id="ltDesc" placeholder="Full description"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group"><label>Unit Price ($)</label><input class="form-input" id="ltPrice" type="number" step="0.01" min="0"></div>
+          <div class="form-group"><label>Notes</label><input class="form-input" id="ltNotes" placeholder="Notes, TBD items..."></div>
+        </div>
+        <button class="btn btn-primary" onclick="addLighting()">Add Fixture</button>
+      </div>
+
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="setLightingFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setLightingFilter('interior',this)">Interior</button>
+        <button class="filter-btn" onclick="setLightingFilter('exterior',this)">Exterior</button>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <div id="lightingBody"><div class="loading-overlay"><span class="spinner"></span></div></div>
+      </div>
+    </div>
+
     <!-- CONTACTS -->
     <div class="section" id="sec-contacts">
       <div class="admin-panel builder-only">
@@ -635,7 +697,7 @@ function enterApp() {
 //  DATA LOADING
 // ================================================================
 async function loadAll() {
-  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts()]);
+  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting()]);
   renderDashboard();
 }
 
@@ -673,6 +735,7 @@ function setupRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_decisions' }, () => { loadDecisions(); renderDashboard(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_photos' }, () => loadPhotos())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_phases' }, () => { loadPhases(); renderDashboard(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_lighting' }, () => loadLighting())
     .subscribe();
 }
 
@@ -1155,6 +1218,153 @@ async function deleteContact(id) {
   await sb.from('hub_contacts').delete().eq('id', id);
   await loadContacts();
 }
+
+// ================================================================
+//  LIGHTING
+// ================================================================
+let lighting = [];
+let lightingFilter = 'all';
+
+async function loadLighting() {
+  const { data } = await sb.from('hub_lighting').select('*').order('sort_order');
+  if (data) { lighting = data; renderLighting(); }
+}
+
+function setLightingFilter(f, btn) {
+  lightingFilter = f;
+  document.querySelectorAll('#sec-lighting .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderLighting();
+}
+
+function renderLighting() {
+  const body = document.getElementById('lightingBody');
+  if (!lighting.length) {
+    body.innerHTML = '<div class="empty-state"><div class="icon">💡</div><h4>No lighting selections yet</h4></div>';
+    return;
+  }
+
+  let items = lighting;
+  const showBoth = lightingFilter === 'all';
+  if (!showBoth) items = items.filter(l => l.category === lightingFilter);
+
+  const categories = showBoth ? ['interior', 'exterior'] : [lightingFilter];
+  const isBuilder = role === 'builder';
+
+  let html = '<table class="lt-table"><thead><tr>';
+  html += '<th>Location</th><th>Qty</th><th>Style</th><th>Fixture Details</th><th>Unit $</th><th>Ext $</th><th>Notes</th>';
+  if (isBuilder) html += '<th></th>';
+  html += '</tr></thead><tbody>';
+
+  let grandTotal = 0;
+
+  categories.forEach(cat => {
+    const catItems = items.filter(l => l.category === cat);
+    if (!catItems.length) return;
+    const catLabel = cat === 'interior' ? 'Interior Lighting' : 'Exterior Lighting';
+    html += `<tr class="lt-cat-header"><td colspan="${isBuilder ? 8 : 7}">${catLabel}</td></tr>`;
+
+    let catTotal = 0;
+    catItems.forEach(l => {
+      const ext = (l.qty && l.unit_price) ? (l.qty * l.unit_price) : 0;
+      catTotal += ext;
+
+      if (isBuilder) {
+        html += `<tr>
+          <td><input class="lt-edit-cell" value="${escAttr(l.location)}" onchange="updateLt('${l.id}','location',this.value)" style="min-width:100px;"></td>
+          <td><input class="lt-edit-cell" type="number" value="${l.qty || ''}" onchange="updateLt('${l.id}','qty',this.value)" style="width:45px;"></td>
+          <td><input class="lt-edit-cell" value="${escAttr(l.style || '')}" onchange="updateLt('${l.id}','style',this.value)" style="min-width:80px;"></td>
+          <td>
+            <input class="lt-edit-cell" value="${escAttr(l.description || '')}" onchange="updateLt('${l.id}','description',this.value)" style="min-width:200px;" placeholder="Description">
+            <div style="display:flex;gap:0.5rem;margin-top:0.2rem;">
+              <input class="lt-edit-cell lt-mfg" value="${escAttr(l.manufacturer || '')}" onchange="updateLt('${l.id}','manufacturer',this.value)" placeholder="Mfg" style="width:45%;">
+              <input class="lt-edit-cell lt-model" value="${escAttr(l.model || '')}" onchange="updateLt('${l.id}','model',this.value)" placeholder="Model" style="width:55%;">
+            </div>
+          </td>
+          <td><input class="lt-edit-cell" type="number" step="0.01" value="${l.unit_price || ''}" onchange="updateLt('${l.id}','unit_price',this.value)" style="width:75px;"></td>
+          <td style="white-space:nowrap;font-weight:500;">${ext ? '$' + ext.toFixed(2) : ''}</td>
+          <td><input class="lt-edit-cell" value="${escAttr(l.notes || '')}" onchange="updateLt('${l.id}','notes',this.value)" style="min-width:90px;" placeholder="Notes"></td>
+          <td><button class="btn-danger" onclick="deleteLt('${l.id}')">✕</button></td>
+        </tr>`;
+      } else {
+        html += `<tr>
+          <td><strong>${esc(l.location)}</strong></td>
+          <td>${l.qty || ''}</td>
+          <td>${esc(l.style || '')}</td>
+          <td>
+            <div class="lt-desc">${esc(l.description || '')}</div>
+            ${l.manufacturer ? '<div class="lt-mfg">' + esc(l.manufacturer) + '</div>' : ''}
+            ${l.model ? '<div class="lt-model">' + esc(l.model) + '</div>' : ''}
+          </td>
+          <td>${l.unit_price ? '$' + Number(l.unit_price).toFixed(2) : ''}</td>
+          <td style="white-space:nowrap;font-weight:500;">${ext ? '$' + ext.toFixed(2) : ''}</td>
+          <td class="lt-notes">${esc(l.notes || '')}</td>
+        </tr>`;
+      }
+    });
+
+    html += `<tr class="lt-total"><td colspan="5" style="text-align:right;">${catLabel} Total</td><td>$${catTotal.toFixed(2)}</td><td colspan="${isBuilder ? 2 : 1}"></td></tr>`;
+    grandTotal += catTotal;
+  });
+
+  if (showBoth) {
+    html += `<tr class="lt-total" style="background:var(--teal-pale);"><td colspan="5" style="text-align:right;font-size:0.95rem;">Grand Total</td><td style="font-size:0.95rem;">$${grandTotal.toFixed(2)}</td><td colspan="${isBuilder ? 2 : 1}"></td></tr>`;
+  }
+
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+let ltUpdateTimer = {};
+async function updateLt(id, field, value) {
+  clearTimeout(ltUpdateTimer[id + field]);
+  ltUpdateTimer[id + field] = setTimeout(async () => {
+    const update = {};
+    if (field === 'qty' || field === 'unit_price') {
+      update[field] = value ? Number(value) : null;
+    } else {
+      update[field] = value || null;
+    }
+    await sb.from('hub_lighting').update(update).eq('id', id);
+    // Update local state for immediate re-render of extended price
+    const item = lighting.find(l => l.id === id);
+    if (item) {
+      if (field === 'qty') item.qty = update.qty;
+      else if (field === 'unit_price') item.unit_price = update.unit_price;
+      else item[field] = update[field];
+      renderLighting();
+    }
+  }, 500);
+}
+
+async function addLighting() {
+  const loc = document.getElementById('ltLoc').value.trim();
+  if (!loc) return alert('Location is required.');
+  const maxSort = lighting.length ? Math.max(...lighting.filter(l => l.category === document.getElementById('ltCat').value).map(l => l.sort_order || 0)) : 0;
+  await sb.from('hub_lighting').insert({
+    category: document.getElementById('ltCat').value,
+    location: loc,
+    qty: parseInt(document.getElementById('ltQty').value) || 1,
+    style: document.getElementById('ltStyle').value.trim() || null,
+    manufacturer: document.getElementById('ltMfg').value.trim() || null,
+    model: document.getElementById('ltModel').value.trim() || null,
+    description: document.getElementById('ltDesc').value.trim() || null,
+    unit_price: parseFloat(document.getElementById('ltPrice').value) || null,
+    notes: document.getElementById('ltNotes').value.trim() || null,
+    sort_order: maxSort + 1
+  });
+  ['ltLoc','ltStyle','ltMfg','ltModel','ltDesc','ltPrice','ltNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ltQty').value = '1';
+  await loadLighting();
+}
+
+async function deleteLt(id) {
+  if (!confirm('Delete this fixture?')) return;
+  await sb.from('hub_lighting').delete().eq('id', id);
+  await loadLighting();
+}
+
+function escAttr(s) { return s ? s.replace(/"/g, '&quot;').replace(/'/g, '&#39;') : ''; }
 
 // ================================================================
 //  LIGHTBOX
