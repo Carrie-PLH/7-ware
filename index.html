@@ -359,6 +359,36 @@
   .lt-desc { font-size: 0.78rem; color: var(--gray); line-height: 1.4; }
   .lt-notes { font-size: 0.75rem; color: var(--orange); font-style: italic; }
 
+  /* COST TABLE */
+  .cost-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .cost-table th {
+    text-align: left; font-size: 0.68rem; color: var(--gray-mid);
+    text-transform: uppercase; letter-spacing: 0.4px; padding: 0.45rem 0.4rem;
+    border-bottom: 2px solid var(--gray-bg); white-space: nowrap;
+  }
+  .cost-table td { padding: 0.35rem 0.4rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  .cost-table tr:hover { background: var(--orange-light); }
+  .cost-cat-row td { background: var(--gray-bg); font-weight: 600; color: var(--teal-deep); border-bottom: 2px solid var(--teal-light); }
+  .cost-total td { font-weight: 600; border-top: 2px solid var(--gray-dark); background: var(--teal-pale); }
+  .cost-savings { color: var(--green); font-weight: 600; }
+  .cost-flag { color: var(--red); font-weight: 600; }
+  .cost-edit {
+    background: none; border: 1px solid transparent; padding: 0.15rem 0.3rem;
+    font-size: 0.8rem; font-family: inherit; color: var(--gray-dark);
+    width: 100%; border-radius: 3px;
+  }
+  .cost-edit:hover { border-color: var(--gray-light); }
+  .cost-edit:focus { border-color: var(--orange); outline: none; background: white; }
+  .cost-note-card {
+    border: 1px solid #e8ecee; border-radius: 8px; padding: 1rem;
+    margin-bottom: 0.75rem; background: white; border-left: 3px solid var(--orange);
+  }
+  .cost-note-cat {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 0.1rem 0.4rem; border-radius: 4px; display: inline-block;
+    background: var(--orange-light); color: var(--orange); font-weight: 600;
+  }
+
   /* LIGHTBOX */
   .lightbox {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
@@ -422,6 +452,7 @@
     <div class="nav-tab" data-section="selections" onclick="showSection('selections',this)">Selections</div>
     <div class="nav-tab" data-section="photos" onclick="showSection('photos',this)">Photos</div>
     <div class="nav-tab" data-section="contacts" onclick="showSection('contacts',this)">Contacts</div>
+    <div class="nav-tab builder-only" data-section="costs" onclick="showSection('costs',this)" style="color:var(--orange);">Costs</div>
   </div>
 
   <div class="main-content">
@@ -610,6 +641,40 @@
       </div>
       <div id="contactsList"><div class="loading-overlay"><span class="spinner"></span></div></div>
     </div>
+
+    <!-- COSTS (builder only) -->
+    <div class="section builder-only" id="sec-costs">
+      <div style="background:var(--orange-light);border:1px solid var(--orange);border-radius:8px;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.82rem;color:var(--orange);">
+        This section is only visible to the builder. Homeowners cannot see or access this data.
+      </div>
+
+      <h3 style="margin-bottom:0.75rem;color:var(--teal-deep);">Lighting Sourcing &amp; Pricing</h3>
+      <div class="card" style="overflow-x:auto;">
+        <div id="costLightingBody"><div class="loading-overlay"><span class="spinner"></span></div></div>
+      </div>
+
+      <h3 style="margin-top:2rem;margin-bottom:0.75rem;color:var(--teal-deep);">Builder Notes &amp; Cost Tracking</h3>
+      <div class="admin-panel" style="background:var(--orange-light);border-color:var(--orange);">
+        <h3>Add Note</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group"><label>Category</label>
+            <select class="form-select" id="cnCat">
+              <option value="general">General</option>
+              <option value="vendor">Vendor / Supplier</option>
+              <option value="budget">Budget / Cost</option>
+              <option value="schedule">Schedule</option>
+              <option value="issue">Issue / Flag</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Amount (optional)</label><input class="form-input" id="cnAmount" type="number" step="0.01" placeholder="$"></div>
+        </div>
+        <div class="form-group"><label>Title</label><input class="form-input" id="cnTitle" placeholder="e.g., Ferguson quote for Bath 1 sconces"></div>
+        <div class="form-group"><label>Details</label><textarea class="form-textarea" id="cnBody" placeholder="Notes, links, contact info..." style="min-height:60px;"></textarea></div>
+        <button class="btn btn-primary" onclick="addCostNote()">Add Note</button>
+      </div>
+      <div id="costNotesList"></div>
+    </div>
+
   </div>
 </div>
 
@@ -695,7 +760,7 @@ function enterApp() {
 //  DATA LOADING
 // ================================================================
 async function loadAll() {
-  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting()]);
+  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes()]);
   renderDashboard();
 }
 
@@ -1225,7 +1290,7 @@ let lightingFilter = 'all';
 
 async function loadLighting() {
   const { data } = await sb.from('hub_lighting').select('*').order('sort_order');
-  if (data) { lighting = data; renderLighting(); }
+  if (data) { lighting = data; renderLighting(); if (role === 'builder') renderCostLighting(); }
 }
 
 function setLightingFilter(f, btn) {
@@ -1363,6 +1428,133 @@ async function deleteLt(id) {
 }
 
 function escAttr(s) { return s ? s.replace(/"/g, '&quot;').replace(/'/g, '&#39;') : ''; }
+
+// ================================================================
+//  COSTS (builder-only)
+// ================================================================
+let costNotes = [];
+
+async function loadCostNotes() {
+  const { data } = await sb.from('hub_cost_notes').select('*').order('created_at', { ascending: false });
+  if (data) { costNotes = data; renderCostNotes(); }
+}
+
+function renderCostLighting() {
+  const body = document.getElementById('costLightingBody');
+  if (!lighting.length) { body.innerHTML = '<p style="color:var(--gray-mid);">No lighting data.</p>'; return; }
+
+  const categories = ['interior', 'exterior'];
+  let html = '<table class="cost-table"><thead><tr>';
+  html += '<th>Location</th><th>Fixture</th><th>Qty</th><th>Your $/unit</th><th>Your Ext.</th><th>Best $/unit</th><th>Best Source</th><th>Savings/unit</th><th>Savings Ext.</th><th>Notes</th>';
+  html += '</tr></thead><tbody>';
+
+  let grandYours = 0, grandBest = 0;
+
+  categories.forEach(cat => {
+    const items = lighting.filter(l => l.category === cat);
+    if (!items.length) return;
+    html += `<tr class="cost-cat-row"><td colspan="10">${cat === 'interior' ? 'Interior' : 'Exterior'} Lighting</td></tr>`;
+
+    let catYours = 0, catBest = 0;
+    items.forEach(l => {
+      const yourExt = (l.qty || 0) * (l.unit_price || 0);
+      const bestExt = (l.qty || 0) * (l.best_price || l.unit_price || 0);
+      const savingsUnit = (l.unit_price || 0) - (l.best_price || l.unit_price || 0);
+      const savingsExt = yourExt - bestExt;
+      catYours += yourExt;
+      catBest += bestExt;
+
+      const savingsClass = savingsUnit > 0 ? 'cost-savings' : (savingsUnit < 0 ? 'cost-flag' : '');
+
+      html += `<tr>
+        <td><strong>${esc(l.location)}</strong></td>
+        <td style="font-size:0.75rem;">${esc(l.description || l.style || '')}<br><span style="color:var(--gray-mid);">${esc(l.manufacturer || '')} ${esc(l.model || '')}</span></td>
+        <td style="text-align:center;">${l.qty || ''}</td>
+        <td>${l.unit_price ? '$' + Number(l.unit_price).toFixed(2) : ''}</td>
+        <td>${yourExt ? '$' + yourExt.toFixed(2) : ''}</td>
+        <td><input class="cost-edit" type="number" step="0.01" value="${l.best_price || ''}" onchange="updateLtCost('${l.id}','best_price',this.value)" style="width:80px;"></td>
+        <td><input class="cost-edit" value="${escAttr(l.best_source || '')}" onchange="updateLtCost('${l.id}','best_source',this.value)" style="min-width:120px;"></td>
+        <td class="${savingsClass}">${savingsUnit ? '$' + savingsUnit.toFixed(2) : ''}</td>
+        <td class="${savingsClass}">${savingsExt ? '$' + savingsExt.toFixed(2) : ''}</td>
+        <td><input class="cost-edit" value="${escAttr(l.sourcing_notes || '')}" onchange="updateLtCost('${l.id}','sourcing_notes',this.value)" style="min-width:100px;" placeholder="Notes"></td>
+      </tr>`;
+    });
+
+    html += `<tr class="cost-total">
+      <td colspan="4" style="text-align:right;">Subtotal</td>
+      <td>$${catYours.toFixed(2)}</td><td colspan="2"></td>
+      <td colspan="2" class="cost-savings">Save $${(catYours - catBest).toFixed(2)}</td><td></td>
+    </tr>`;
+    grandYours += catYours;
+    grandBest += catBest;
+  });
+
+  const grandSavings = grandYours - grandBest;
+  html += `<tr style="background:var(--teal-pale);">
+    <td colspan="4" style="text-align:right;font-weight:700;font-size:0.9rem;">Grand Total</td>
+    <td style="font-weight:700;font-size:0.9rem;">$${grandYours.toFixed(2)}</td>
+    <td style="font-weight:700;font-size:0.9rem;color:var(--green);">$${grandBest.toFixed(2)}</td>
+    <td style="font-size:0.78rem;color:var(--gray-mid);">Best-price total</td>
+    <td colspan="2" style="font-weight:700;font-size:0.9rem;color:var(--green);">Save $${grandSavings.toFixed(2)}</td>
+    <td></td>
+  </tr>`;
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+let ltCostTimer = {};
+async function updateLtCost(id, field, value) {
+  clearTimeout(ltCostTimer[id + field]);
+  ltCostTimer[id + field] = setTimeout(async () => {
+    const update = {};
+    if (field === 'best_price') update[field] = value ? Number(value) : null;
+    else update[field] = value || null;
+    await sb.from('hub_lighting').update(update).eq('id', id);
+    const item = lighting.find(l => l.id === id);
+    if (item) { item[field] = update[field]; renderCostLighting(); }
+  }, 500);
+}
+
+async function addCostNote() {
+  const title = document.getElementById('cnTitle').value.trim();
+  if (!title) return alert('Title is required.');
+  await sb.from('hub_cost_notes').insert({
+    category: document.getElementById('cnCat').value,
+    title,
+    body: document.getElementById('cnBody').value.trim() || null,
+    amount: parseFloat(document.getElementById('cnAmount').value) || null
+  });
+  ['cnTitle', 'cnBody', 'cnAmount'].forEach(id => document.getElementById(id).value = '');
+  await loadCostNotes();
+}
+
+function renderCostNotes() {
+  const list = document.getElementById('costNotesList');
+  if (!costNotes.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:1.5rem;"><p>No builder notes yet.</p></div>';
+    return;
+  }
+  list.innerHTML = costNotes.map(n => {
+    return `<div class="cost-note-card">
+      <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div>
+          <span class="cost-note-cat">${esc(n.category)}</span>
+          ${n.amount ? '<span style="font-size:0.85rem;font-weight:600;margin-left:0.5rem;">$' + Number(n.amount).toFixed(2) + '</span>' : ''}
+          <span style="font-size:0.73rem;color:var(--gray-mid);margin-left:0.5rem;">${fmtDate(n.created_at)}</span>
+        </div>
+        <button class="btn-danger" onclick="deleteCostNote('${n.id}')">✕</button>
+      </div>
+      <div style="font-weight:600;margin-top:0.3rem;">${esc(n.title)}</div>
+      ${n.body ? '<div style="font-size:0.85rem;color:var(--gray);margin-top:0.2rem;white-space:pre-wrap;">' + esc(n.body) + '</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function deleteCostNote(id) {
+  if (!confirm('Delete this note?')) return;
+  await sb.from('hub_cost_notes').delete().eq('id', id);
+  await loadCostNotes();
+}
 
 // ================================================================
 //  LIGHTBOX
