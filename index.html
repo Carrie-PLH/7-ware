@@ -507,7 +507,7 @@
 
   <div class="nav-bar">
     <div class="nav-tab active" data-section="dashboard" onclick="showSection('dashboard',this)">Dashboard</div>
-    <div class="nav-tab" data-section="updates" onclick="showSection('updates',this)">Updates</div>
+    <div class="nav-tab" data-section="updates" onclick="showSection('updates',this)">Updates <span class="badge" id="updatesBadge" style="display:none">0</span></div>
     <div class="nav-tab" data-section="decisions" onclick="showSection('decisions',this)">Decisions <span class="badge" id="decisionBadge" style="display:none">0</span></div>
     <div class="nav-tab" data-section="selections" onclick="showSection('selections',this)">Selections</div>
     <div class="nav-tab" data-section="photos" onclick="showSection('photos',this)">Photos</div>
@@ -537,6 +537,22 @@
       <div class="card">
         <h3 style="margin-bottom:0.6rem;">Upcoming Phases</h3>
         <div id="dashMilestones"></div>
+      </div>
+      <div class="card" style="margin-top:1rem;border-left:4px solid var(--green);">
+        <h3 style="margin-bottom:0.4rem;font-size:0.95rem;">Notifications</h3>
+        <p style="font-size:0.8rem;color:var(--gray-mid);margin-bottom:0.6rem;">Get browser alerts when the other party posts updates, decisions, or messages.</p>
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+          <span id="notifyStatus" style="font-size:0.82rem;"></span>
+          <button class="btn btn-sm btn-secondary" id="notifyBtn" onclick="toggleNotifications()" style="display:none;">Enable</button>
+        </div>
+        <div style="margin-top:0.75rem;">
+          <label style="font-size:0.78rem;color:var(--gray-mid);">Email for notifications (optional)</label>
+          <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
+            <input class="form-input" id="notifyEmail" placeholder="your@email.com" style="flex:1;font-size:0.85rem;">
+            <button class="btn btn-sm btn-primary" onclick="saveNotifyEmail()">Save</button>
+          </div>
+          <div id="emailSaveStatus" style="font-size:0.75rem;color:var(--green);margin-top:0.25rem;"></div>
+        </div>
       </div>
     </div>
 
@@ -838,6 +854,7 @@ function enterApp() {
   });
   loadAll();
   setupRealtime();
+  requestNotifyPermission();
 }
 
 // Resume session
@@ -855,6 +872,7 @@ function enterApp() {
 async function loadAll() {
   await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes(), loadMessages()]);
   renderDashboard();
+  loadNotifyEmail();
 }
 
 async function loadPhases() {
@@ -885,15 +903,134 @@ async function loadContacts() {
 // ================================================================
 //  REALTIME
 // ================================================================
+let appReady = false;
 function setupRealtime() {
+  // Delay notifications until initial data load is done
+  setTimeout(() => { appReady = true; }, 3000);
+
   sb.channel('hub-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_updates' }, () => loadUpdates())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_decisions' }, () => { loadDecisions(); renderDashboard(); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_updates' }, (payload) => {
+      loadUpdates();
+      notify('New Update', payload.new.title || 'A new update was posted', 'updates');
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_updates' }, (payload) => {
+      if (payload.eventType !== 'INSERT') loadUpdates();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_decisions' }, (payload) => {
+      loadDecisions(); renderDashboard();
+      notify('New Decision Needed', payload.new.question || 'A decision question was posted', 'decisions');
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_decisions' }, (payload) => {
+      if (payload.eventType === 'UPDATE') {
+        loadDecisions(); renderDashboard();
+        if (payload.new.response && !payload.old.response) {
+          notify('Decision Answered', payload.new.question || 'A decision was submitted', 'decisions');
+        }
+      }
+      if (payload.eventType === 'DELETE') { loadDecisions(); renderDashboard(); }
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_photos' }, () => loadPhotos())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_phases' }, () => { loadPhases(); renderDashboard(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_lighting' }, () => loadLighting())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_messages' }, () => loadMessages())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_messages' }, (payload) => {
+      loadMessages();
+      if (payload.new.role !== role) {
+        notify('New Message', payload.new.body ? payload.new.body.substring(0, 80) : 'New board message', 'board');
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_messages' }, (payload) => {
+      if (payload.eventType !== 'INSERT') loadMessages();
+    })
     .subscribe();
+}
+
+// ================================================================
+//  BROWSER NOTIFICATIONS
+// ================================================================
+function requestNotifyPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function notify(title, body, section) {
+  if (!appReady) return;
+  // Tab badge flash
+  flashTabBadge(section);
+  // Browser notification
+  if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+    const n = new Notification('7 Ware Lane: ' + title, {
+      body: body,
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏡</text></svg>',
+      tag: section + '-' + Date.now()
+    });
+    n.onclick = () => { window.focus(); showSection(section); n.close(); };
+    setTimeout(() => n.close(), 8000);
+  }
+  // Page title flash
+  if (document.hidden) {
+    const orig = document.title;
+    document.title = '● ' + title + ' — 7 Ware Lane';
+    const restore = () => { document.title = orig; document.removeEventListener('visibilitychange', restore); };
+    document.addEventListener('visibilitychange', restore);
+  }
+}
+
+function flashTabBadge(section) {
+  const badgeMap = { decisions: 'decisionBadge', board: 'boardBadge', updates: 'updatesBadge' };
+  const badge = document.getElementById(badgeMap[section]);
+  if (!badge) return;
+  const current = parseInt(badge.textContent) || 0;
+  badge.textContent = current + 1;
+  badge.style.display = 'inline-block';
+  // Clear badge when section is viewed
+  const tab = badge.closest('.nav-tab');
+  const clearFn = () => { badge.style.display = 'none'; badge.textContent = '0'; tab.removeEventListener('click', clearFn); };
+  tab.addEventListener('click', clearFn);
+}
+
+function updateNotifyUI() {
+  const status = document.getElementById('notifyStatus');
+  const btn = document.getElementById('notifyBtn');
+  if (!status) return;
+  if (!('Notification' in window)) {
+    status.textContent = 'Browser notifications not supported.';
+    status.style.color = 'var(--gray-mid)';
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    status.innerHTML = '<span style="color:var(--green);">&#10003; Browser notifications enabled</span>';
+    btn.style.display = 'none';
+  } else if (Notification.permission === 'denied') {
+    status.textContent = 'Notifications blocked. Enable in browser settings.';
+    status.style.color = 'var(--red)';
+    btn.style.display = 'none';
+  } else {
+    status.textContent = 'Browser notifications are off.';
+    btn.style.display = 'inline-block';
+  }
+}
+
+function toggleNotifications() {
+  if ('Notification' in window) {
+    Notification.requestPermission().then(() => updateNotifyUI());
+  }
+}
+
+async function loadNotifyEmail() {
+  const key = role === 'builder' ? 'builder_email' : 'homeowner_email';
+  const { data } = await sb.from('hub_config').select('value').eq('key', key).single();
+  if (data && data.value) document.getElementById('notifyEmail').value = data.value;
+  updateNotifyUI();
+}
+
+async function saveNotifyEmail() {
+  const email = document.getElementById('notifyEmail').value.trim();
+  const key = role === 'builder' ? 'builder_email' : 'homeowner_email';
+  await sb.from('hub_config').update({ value: email }).eq('key', key);
+  const msg = document.getElementById('emailSaveStatus');
+  msg.textContent = email ? 'Saved.' : 'Cleared.';
+  setTimeout(() => { msg.textContent = ''; }, 2000);
 }
 
 // ================================================================
