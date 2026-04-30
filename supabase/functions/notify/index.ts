@@ -1,17 +1,6 @@
-// Supabase Edge Function: Email notifications for 7 Ware Lane
-// Triggered by database webhooks on INSERT to hub_updates, hub_decisions, hub_messages
-//
-// SETUP:
-// 1. Sign up at https://resend.com and get an API key (free tier: 100 emails/day)
-// 2. Set secrets:
-//    supabase secrets set RESEND_API_KEY=re_xxxxx
-//    supabase secrets set SUPABASE_URL=https://xhlwkfhrivucphlwtubl.supabase.co
-//    supabase secrets set SUPABASE_SERVICE_KEY=your-service-role-key
-// 3. Deploy: supabase functions deploy notify
-// 4. Create database webhooks in Supabase Dashboard > Database > Webhooks:
-//    - Table: hub_updates, Event: INSERT, URL: <function-url>
-//    - Table: hub_decisions, Event: INSERT, URL: <function-url>
-//    - Table: hub_messages, Event: INSERT, URL: <function-url>
+// Supabase Edge Function: Batched email digest for 7 Ware Lane
+// Called every 10 minutes by pg_cron. Reads notification_queue,
+// groups by target role, sends one digest email per role, clears queue.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -19,85 +8,138 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_KEY")!;
 const SITE_URL = Deno.env.get("SITE_URL") || "https://7warelanebuild.pages.dev";
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "7 Ware Lane <notifications@yourdomain.com>";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "7 Ware Lane <onboarding@resend.dev>";
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function iconForTable(table: string): string {
+  if (table === "hub_updates") return "&#128221;";
+  if (table === "hub_decisions") return "&#10067;";
+  if (table === "hub_messages") return "&#128172;";
+  return "&#8226;";
+}
+
+function labelForTable(table: string): string {
+  if (table === "hub_updates") return "Update";
+  if (table === "hub_decisions") return "Decision";
+  if (table === "hub_messages") return "Message";
+  return table;
+}
 
 Deno.serve(async (req) => {
   try {
-    const payload = await req.json();
-    const table = payload.table;
-    const record = payload.record;
-
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Determine who posted and who should be notified
-    let posterRole: string | null = null;
-    let subject = "";
-    let body = "";
+    // Fetch all queued notifications
+    const { data: queue, error: qErr } = await sb
+      .from("notification_queue")
+      .select("*")
+      .order("created_at", { ascending: true });
 
-    if (table === "hub_updates") {
-      posterRole = "builder"; // only builder posts updates
-      subject = "New Update: " + (record.title || "Untitled");
-      body = record.body || record.title || "A new update was posted.";
-    } else if (table === "hub_decisions") {
-      posterRole = "builder"; // only builder creates decisions
-      subject = "Decision Needed: " + (record.question || "");
-      body = record.question || "A new decision question was posted.";
-      if (record.deadline) body += `\n\nNeeded by: ${record.deadline}`;
-    } else if (table === "hub_messages") {
-      posterRole = record.role || null;
-      const otherRole = posterRole === "builder" ? "Homeowner" : "Builder";
-      subject = `New Message from ${posterRole === "builder" ? "Builder" : "Homeowner"}`;
-      body = record.body || "New message on the board.";
+    if (qErr || !queue || queue.length === 0) {
+      return new Response(JSON.stringify({ ok: true, sent: 0, reason: "queue empty" }), { status: 200 });
     }
 
-    if (!posterRole) {
-      return new Response(JSON.stringify({ ok: true, skipped: "unknown table" }), { status: 200 });
+    // Group by target role
+    const grouped: Record<string, typeof queue> = {};
+    for (const item of queue) {
+      const role = item.target_role;
+      if (!grouped[role]) grouped[role] = [];
+      grouped[role].push(item);
     }
 
-    // Get the email of the OTHER party
-    const notifyKey = posterRole === "builder" ? "homeowner_email" : "builder_email";
-    const { data: config } = await sb
-      .from("hub_config")
-      .select("value")
-      .eq("key", notifyKey)
-      .single();
+    const results: Record<string, unknown> = {};
 
-    const email = config?.value?.trim();
-    if (!email) {
-      return new Response(JSON.stringify({ ok: true, skipped: "no email configured" }), { status: 200 });
-    }
+    for (const [targetRole, items] of Object.entries(grouped)) {
+      // Look up emails for this role
+      const emailKey = targetRole === "builder" ? "builder_email" : "homeowner_email";
+      const { data: config } = await sb
+        .from("hub_config")
+        .select("value")
+        .eq("key", emailKey)
+        .single();
 
-    // Send via Resend
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [email],
-        subject: `[7 Ware Lane] ${subject}`,
-        html: `
-          <div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
-            <div style="background:#1a6b7a;color:white;padding:12px 20px;border-radius:8px 8px 0 0;">
-              <strong>7 Ware Lane</strong>
-            </div>
-            <div style="border:1px solid #e0e0e0;border-top:none;padding:20px;border-radius:0 0 8px 8px;">
-              <h2 style="margin:0 0 10px;color:#2d3436;font-size:1.1rem;">${subject}</h2>
-              <p style="color:#4a4a4a;line-height:1.6;white-space:pre-wrap;">${body.substring(0, 500)}</p>
-              <a href="${SITE_URL}" style="display:inline-block;margin-top:15px;padding:10px 20px;background:#2d9db3;color:white;text-decoration:none;border-radius:6px;font-weight:600;">
+      const rawEmails = config?.value?.trim();
+      if (!rawEmails) {
+        results[targetRole] = "no email configured";
+        continue;
+      }
+
+      const emails = rawEmails.split(",").map((e: string) => e.trim()).filter((e: string) => e.length > 0);
+      if (!emails.length) {
+        results[targetRole] = "no valid emails";
+        continue;
+      }
+
+      // Build digest
+      const count = items.length;
+      const subject = count === 1
+        ? `${labelForTable(items[0].source_table)}: ${items[0].summary.substring(0, 60)}`
+        : `${count} new items on your project hub`;
+
+      const itemsHtml = items.map((item) => {
+        const icon = iconForTable(item.source_table);
+        const label = labelForTable(item.source_table);
+        const time = new Date(item.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        return `
+          <tr>
+            <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;vertical-align:top;width:28px;">
+              ${icon}
+            </td>
+            <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">
+              <div style="font-size:11px;color:#6b7b86;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px;">${label} &middot; ${time}</div>
+              <div style="font-size:14px;color:#1a2024;line-height:1.4;">${escHtml(item.summary)}</div>
+            </td>
+          </tr>`;
+      }).join("");
+
+      const html = `
+        <div style="font-family:-apple-system,'DM Sans',sans-serif;max-width:520px;margin:0 auto;padding:20px;">
+          <div style="background:linear-gradient(135deg,#0f3d47,#14616f,#1e8a9e);color:white;padding:16px 22px;border-radius:12px 12px 0 0;">
+            <div style="font-size:20px;font-weight:600;letter-spacing:-0.3px;">7 Ware Lane</div>
+            <div style="font-size:13px;opacity:0.7;margin-top:2px;">Project Hub &middot; ${count} new ${count === 1 ? "item" : "items"}</div>
+          </div>
+          <div style="border:1px solid #e4e8eb;border-top:none;padding:0;border-radius:0 0 12px 12px;overflow:hidden;background:white;">
+            <table style="width:100%;border-collapse:collapse;">
+              ${itemsHtml}
+            </table>
+            <div style="padding:18px 22px;text-align:center;">
+              <a href="${SITE_URL}" style="display:inline-block;padding:11px 28px;background:#14616f;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
                 Open Project Hub
               </a>
             </div>
           </div>
-        `,
-      }),
-    });
+          <div style="text-align:center;margin-top:14px;font-size:11px;color:#6b7b86;">
+            You're receiving this because you're part of the 7 Ware Lane build.
+          </div>
+        </div>
+      `;
 
-    const result = await res.json();
-    return new Response(JSON.stringify({ ok: true, resend: result }), { status: 200 });
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: emails,
+          subject: `[7 Ware Lane] ${subject}`,
+          html,
+        }),
+      });
+
+      results[targetRole] = await res.json();
+    }
+
+    // Clear the queue
+    const ids = queue.map((q) => q.id);
+    await sb.from("notification_queue").delete().in("id", ids);
+
+    return new Response(JSON.stringify({ ok: true, sent: queue.length, results }), { status: 200 });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500 });
   }
 });
