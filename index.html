@@ -389,6 +389,44 @@
     background: var(--orange-light); color: var(--orange); font-weight: 600;
   }
 
+  /* MESSAGE BOARD */
+  .msg-bubble {
+    border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 0.6rem;
+    max-width: 85%; position: relative; line-height: 1.45;
+  }
+  .msg-builder {
+    background: var(--teal-pale); border: 1px solid var(--teal-light);
+    margin-right: auto; border-bottom-left-radius: 2px;
+  }
+  .msg-homeowner {
+    background: var(--green-pale, #edf7f0); border: 1px solid var(--green-light, #c8e6cf);
+    margin-left: auto; border-bottom-right-radius: 2px;
+  }
+  .msg-meta {
+    font-size: 0.7rem; color: var(--gray-mid); margin-bottom: 0.2rem;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .msg-meta .msg-role {
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; font-size: 0.65rem;
+  }
+  .msg-builder .msg-role { color: var(--teal-deep); }
+  .msg-homeowner .msg-role { color: var(--green); }
+  .msg-body { font-size: 0.88rem; white-space: pre-wrap; word-break: break-word; }
+  .msg-pinned {
+    border-left: 3px solid var(--yellow); background: var(--yellow-pale, #fdf8e8);
+    border-color: var(--yellow); margin-bottom: 0.5rem;
+  }
+  .msg-pin-label {
+    font-size: 0.65rem; color: var(--yellow-dark, #b8960a); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .msg-actions { display: inline-flex; gap: 0.4rem; margin-left: 0.5rem; }
+  .msg-actions button {
+    background: none; border: none; cursor: pointer; font-size: 0.72rem;
+    color: var(--gray-mid); padding: 0;
+  }
+  .msg-actions button:hover { color: var(--teal-deep); }
+
   /* LIGHTBOX */
   .lightbox {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
@@ -452,6 +490,7 @@
     <div class="nav-tab" data-section="selections" onclick="showSection('selections',this)">Selections</div>
     <div class="nav-tab" data-section="photos" onclick="showSection('photos',this)">Photos</div>
     <div class="nav-tab" data-section="contacts" onclick="showSection('contacts',this)">Contacts</div>
+    <div class="nav-tab" data-section="board" onclick="showSection('board',this)">Board <span class="badge" id="boardBadge" style="display:none">0</span></div>
     <div class="nav-tab builder-only" data-section="costs" onclick="showSection('costs',this)" style="color:var(--orange);">Costs</div>
   </div>
 
@@ -642,6 +681,29 @@
       <div id="contactsList"><div class="loading-overlay"><span class="spinner"></span></div></div>
     </div>
 
+    <!-- BOARD -->
+    <div class="section" id="sec-board">
+      <h2>Message Board</h2>
+      <p style="color:var(--gray-mid);font-size:0.85rem;margin-bottom:1rem;">A shared space for builder and homeowner to exchange notes, questions, and follow-ups.</p>
+
+      <!-- compose -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div style="display:flex;gap:0.5rem;align-items:flex-start;">
+          <textarea class="form-input" id="msgBody" rows="3" placeholder="Type a message..." style="flex:1;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.5rem;">
+          <span id="msgRoleLabel" style="font-size:0.78rem;color:var(--gray-mid);"></span>
+          <button class="btn btn-primary" onclick="postMessage()">Post</button>
+        </div>
+      </div>
+
+      <!-- pinned -->
+      <div id="pinnedMessages"></div>
+
+      <!-- thread -->
+      <div id="boardMessages"><div class="loading-overlay"><span class="spinner"></span></div></div>
+    </div>
+
     <!-- COSTS (builder only) -->
     <div class="section builder-only" id="sec-costs">
       <div style="background:var(--orange-light);border:1px solid var(--orange);border-radius:8px;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.82rem;color:var(--orange);">
@@ -760,7 +822,7 @@ function enterApp() {
 //  DATA LOADING
 // ================================================================
 async function loadAll() {
-  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes()]);
+  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes(), loadMessages()]);
   renderDashboard();
 }
 
@@ -799,6 +861,7 @@ function setupRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_photos' }, () => loadPhotos())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_phases' }, () => { loadPhases(); renderDashboard(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_lighting' }, () => loadLighting())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_messages' }, () => loadMessages())
     .subscribe();
 }
 
@@ -1554,6 +1617,91 @@ async function deleteCostNote(id) {
   if (!confirm('Delete this note?')) return;
   await sb.from('hub_cost_notes').delete().eq('id', id);
   await loadCostNotes();
+}
+
+// ================================================================
+//  MESSAGE BOARD
+// ================================================================
+let messages = [];
+
+async function loadMessages() {
+  const { data } = await sb.from('hub_messages').select('*').order('created_at', { ascending: false });
+  if (data) { messages = data; renderMessages(); }
+}
+
+function renderMessages() {
+  const pinned = messages.filter(m => m.pinned);
+  const unpinned = messages.filter(m => !m.pinned);
+
+  // role label in compose area
+  const label = document.getElementById('msgRoleLabel');
+  if (label) label.textContent = role === 'builder' ? 'Posting as Builder' : 'Posting as Homeowner';
+
+  // pinned
+  const pinnedEl = document.getElementById('pinnedMessages');
+  if (pinned.length) {
+    pinnedEl.innerHTML = '<div style="font-size:0.72rem;font-weight:600;color:var(--gray-mid);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.4rem;">Pinned</div>' +
+      pinned.map(m => msgCard(m, true)).join('');
+  } else { pinnedEl.innerHTML = ''; }
+
+  // all messages
+  const boardEl = document.getElementById('boardMessages');
+  if (!unpinned.length && !pinned.length) {
+    boardEl.innerHTML = '<div class="card" style="text-align:center;color:var(--gray-mid);">No messages yet. Start the conversation!</div>';
+    return;
+  }
+  boardEl.innerHTML = unpinned.map(m => msgCard(m, false)).join('');
+}
+
+function msgCard(m, isPinned) {
+  const isBuilder = m.role === 'builder';
+  const dt = new Date(m.created_at);
+  const timeStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' +
+    dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const bubbleClass = isBuilder ? 'msg-builder' : 'msg-homeowner';
+  const pinClass = isPinned ? ' msg-pinned' : '';
+  const roleLabel = isBuilder ? 'Builder' : 'Homeowner';
+
+  // only builder can pin/unpin; anyone can delete their own role's messages
+  let actions = '';
+  if (role === 'builder') {
+    actions += `<button onclick="togglePin('${m.id}', ${!m.pinned})" title="${m.pinned ? 'Unpin' : 'Pin'}">${m.pinned ? '📌' : '📍'}</button>`;
+  }
+  if (m.role === role) {
+    actions += `<button onclick="deleteMessage('${m.id}')" title="Delete">✕</button>`;
+  }
+
+  return `<div class="msg-bubble ${bubbleClass}${pinClass}">
+    ${isPinned ? '<div class="msg-pin-label">📌 Pinned</div>' : ''}
+    <div class="msg-meta">
+      <span class="msg-role">${roleLabel}</span>
+      <span>${timeStr}${actions ? '<span class="msg-actions">' + actions + '</span>' : ''}</span>
+    </div>
+    <div class="msg-body">${esc(m.body)}</div>
+  </div>`;
+}
+
+async function postMessage() {
+  const body = document.getElementById('msgBody').value.trim();
+  if (!body) return;
+  await sb.from('hub_messages').insert({
+    role: role,
+    author: role === 'builder' ? 'Builder' : 'Homeowner',
+    body: body
+  });
+  document.getElementById('msgBody').value = '';
+  await loadMessages();
+}
+
+async function togglePin(id, pinned) {
+  await sb.from('hub_messages').update({ pinned }).eq('id', id);
+  await loadMessages();
+}
+
+async function deleteMessage(id) {
+  if (!confirm('Delete this message?')) return;
+  await sb.from('hub_messages').delete().eq('id', id);
+  await loadMessages();
 }
 
 // ================================================================
