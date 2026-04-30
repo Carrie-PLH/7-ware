@@ -421,7 +421,6 @@
     <div class="nav-tab" data-section="decisions" onclick="showSection('decisions',this)">Decisions <span class="badge" id="decisionBadge" style="display:none">0</span></div>
     <div class="nav-tab" data-section="selections" onclick="showSection('selections',this)">Selections</div>
     <div class="nav-tab" data-section="photos" onclick="showSection('photos',this)">Photos</div>
-    <div class="nav-tab" data-section="lighting" onclick="showSection('lighting',this)">Lighting</div>
     <div class="nav-tab" data-section="contacts" onclick="showSection('contacts',this)">Contacts</div>
   </div>
 
@@ -546,26 +545,9 @@
       <div class="card" id="selectionsCard">
         <div id="selectionsBody"><div class="loading-overlay"><span class="spinner"></span></div></div>
       </div>
-    </div>
 
-    <!-- PHOTOS -->
-    <div class="section" id="sec-photos">
-      <div class="admin-panel builder-only">
-        <h3>Upload Photos</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-          <div class="form-group"><label>Room / Area</label><input class="form-input" id="photoRoom" placeholder="e.g., Kitchen, Exterior"></div>
-          <div class="form-group"><label>Phase</label><select class="form-select phase-select" id="photoPhase"></select></div>
-        </div>
-        <div class="form-group"><label>Caption</label><input class="form-input" id="photoCaption" placeholder="Brief description"></div>
-        <div class="form-group"><label>Select Photos</label><input type="file" id="photoFiles" accept="image/*" multiple style="font-size:0.85rem;"></div>
-        <button class="btn btn-primary" id="uploadPhotosBtn" onclick="uploadPhotos()">Upload</button>
-      </div>
-      <div class="filter-bar" id="photoFilterBar"></div>
-      <div class="photo-grid" id="photoGrid"><div class="loading-overlay"><span class="spinner"></span></div></div>
-    </div>
+      <h3 style="margin-top:2rem;margin-bottom:0.75rem;font-size:1.1rem;color:var(--teal-deep);">Lighting Selections</h3>
 
-    <!-- LIGHTING -->
-    <div class="section" id="sec-lighting">
       <div class="admin-panel builder-only">
         <h3>Add Lighting Fixture</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
@@ -586,7 +568,7 @@
         <button class="btn btn-primary" onclick="addLighting()">Add Fixture</button>
       </div>
 
-      <div class="filter-bar">
+      <div class="filter-bar" id="lightingFilterBar">
         <button class="filter-btn active" onclick="setLightingFilter('all',this)">All</button>
         <button class="filter-btn" onclick="setLightingFilter('interior',this)">Interior</button>
         <button class="filter-btn" onclick="setLightingFilter('exterior',this)">Exterior</button>
@@ -595,6 +577,22 @@
       <div class="card" style="overflow-x:auto;">
         <div id="lightingBody"><div class="loading-overlay"><span class="spinner"></span></div></div>
       </div>
+    </div>
+
+    <!-- PHOTOS -->
+    <div class="section" id="sec-photos">
+      <div class="admin-panel builder-only">
+        <h3>Upload Photos</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group"><label>Room / Area</label><input class="form-input" id="photoRoom" placeholder="e.g., Kitchen, Exterior"></div>
+          <div class="form-group"><label>Phase</label><select class="form-select phase-select" id="photoPhase"></select></div>
+        </div>
+        <div class="form-group"><label>Caption</label><input class="form-input" id="photoCaption" placeholder="Brief description"></div>
+        <div class="form-group"><label>Select Photos</label><input type="file" id="photoFiles" accept="image/*" multiple style="font-size:0.85rem;"></div>
+        <button class="btn btn-primary" id="uploadPhotosBtn" onclick="uploadPhotos()">Upload</button>
+      </div>
+      <div class="filter-bar" id="photoFilterBar"></div>
+      <div class="photo-grid" id="photoGrid"><div class="loading-overlay"><span class="spinner"></span></div></div>
     </div>
 
     <!-- CONTACTS -->
@@ -1232,7 +1230,7 @@ async function loadLighting() {
 
 function setLightingFilter(f, btn) {
   lightingFilter = f;
-  document.querySelectorAll('#sec-lighting .filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#lightingFilterBar .filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderLighting();
 }
