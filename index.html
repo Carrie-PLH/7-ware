@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>7 Ware Lane — Project Hub</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --teal-deep: #1a6b7a;
+    --teal: #2d9db3;
+    --teal-light: #5bbcd6;
+    --teal-pale: #d4f0f7;
+    --green: #4a8c5c;
+    --green-light: #6bb37e;
+    --green-pale: #e0f5e6;
+    --yellow: #e8c547;
+    --yellow-light: #f0d76e;
+    --yellow-pale: #fdf6dc;
+    --gray-dark: #2d3436;
+    --gray: #4a4a4a;
+    --gray-mid: #7f8c8d;
+    --gray-light: #bdc3c7;
+    --gray-bg: #f4f6f7;
+    --white: #ffffff;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --orange: #e67e22;
+    --orange-light: #fef3e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    color: var(--gray-dark);
+    background: var(--gray-bg);
+    line-height: 1.6;
+  }
+
+  /* LOGIN SCREEN */
+  .login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--teal-deep) 0%, var(--teal) 50%, var(--green) 100%);
+  }
+  .login-box {
+    background: white;
+    border-radius: 16px;
+    padding: 2.5rem;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    text-align: center;
+  }
+  .login-box h1 { font-size: 1.8rem; color: var(--teal-deep); margin-bottom: 0.25rem; }
+  .login-box .login-sub { color: var(--gray-mid); font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .login-box input {
+    width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-light);
+    border-radius: 8px; font-size: 1rem; margin-bottom: 1rem; text-align: center;
+    letter-spacing: 1px; font-family: inherit;
+  }
+  .login-box input:focus { outline: none; border-color: var(--teal); }
+  .login-box button {
+    width: 100%; padding: 0.75rem; background: var(--teal); color: white;
+    border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .login-box button:hover { background: var(--teal-deep); }
+  .login-error { color: var(--red); font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+
+  /* APP SHELL */
+  .app { display: none; }
+  .app.visible { display: block; }
+
+  /* HEADER */
+  .site-header {
+    background: linear-gradient(135deg, var(--teal-deep) 0%, var(--teal) 60%, var(--green) 100%);
+    color: var(--white);
+    padding: 1.5rem 2rem 1.25rem;
+    position: relative;
+  }
+  .site-header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.5px; }
+  .site-header .subtitle { font-size: 0.9rem; opacity: 0.85; margin-top: 0.15rem; }
+  .phase-badge {
+    display: inline-block;
+    background: var(--yellow);
+    color: var(--gray-dark);
+    padding: 0.25rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-top: 0.6rem;
+  }
+  .header-right {
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .role-label {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-right: 0.5rem;
+  }
+  .logout-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: white;
+    padding: 0.35rem 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+  /* NAV */
+  .nav-bar {
+    background: var(--white);
+    border-bottom: 2px solid var(--teal-pale);
+    display: flex;
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-tab {
+    padding: 0.85rem 1.4rem;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--gray);
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--teal); background: var(--teal-pale); }
+  .nav-tab.active { color: var(--teal-deep); border-bottom-color: var(--teal); font-weight: 600; }
+  .nav-tab .badge {
+    background: var(--red);
+    color: white;
+    font-size: 0.68rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    margin-left: 0.35rem;
+    font-weight: 600;
+  }
+
+  /* LAYOUT */
+  .main-content { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* CARD */
+  .card {
+    background: var(--white);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid #e8ecee;
+  }
+
+  /* BUTTONS */
+  .btn {
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--teal); color: white; }
+  .btn-primary:hover { background: var(--teal-deep); }
+  .btn-primary:disabled { background: var(--gray-light); cursor: not-allowed; }
+  .btn-secondary { background: var(--gray-bg); color: var(--gray); border: 1px solid var(--gray-light); }
+  .btn-secondary:hover { background: #e8ecee; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-green:hover { background: #3d7a4e; }
+  .btn-green:disabled { background: var(--gray-light); cursor: not-allowed; }
+  .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.8rem; }
+  .btn-danger { background: none; color: var(--gray-light); border: none; cursor: pointer; font-size: 0.85rem; padding: 0.2rem; }
+  .btn-danger:hover { color: var(--red); }
+
+  /* FORMS */
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem; color: var(--gray); }
+  .form-input, .form-textarea, .form-select {
+    width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--gray-light);
+    border-radius: 6px; font-size: 0.9rem; font-family: inherit; color: var(--gray-dark);
+  }
+  .form-input:focus, .form-textarea:focus, .form-select:focus {
+    outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-pale);
+  }
+  .form-textarea { min-height: 90px; resize: vertical; }
+
+  /* ADMIN PANEL */
+  .admin-panel {
+    background: var(--yellow-pale);
+    border: 1px solid var(--yellow);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .admin-panel h3 { font-size: 0.95rem; color: var(--gray-dark); margin-bottom: 1rem; }
+
+  /* TIMELINE */
+  .timeline-track { display: flex; overflow-x: auto; padding: 0.5rem 0 1rem; }
+  .timeline-phase { flex: 1; min-width: 80px; text-align: center; position: relative; padding: 0 0.15rem; }
+  .timeline-dot {
+    width: 26px; height: 26px; border-radius: 50%; margin: 0 auto 0.4rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; color: white; position: relative; z-index: 2;
+  }
+  .timeline-dot.completed { background: var(--green); }
+  .timeline-dot.current { background: var(--yellow); color: var(--gray-dark); box-shadow: 0 0 0 4px var(--yellow-pale); }
+  .timeline-dot.upcoming { background: var(--gray-light); }
+  .timeline-dot.clickable { cursor: pointer; }
+  .timeline-dot.clickable:hover { transform: scale(1.15); }
+  .timeline-label { font-size: 0.68rem; font-weight: 500; color: var(--gray); line-height: 1.25; }
+  .timeline-label.current { color: var(--teal-deep); font-weight: 700; }
+  .timeline-connector {
+    position: absolute; top: 13px; left: calc(50% + 13px); right: calc(-50% + 13px); height: 3px; z-index: 1;
+  }
+  .timeline-connector.completed { background: var(--green); }
+  .timeline-connector.current { background: linear-gradient(90deg, var(--yellow), var(--gray-light)); }
+  .timeline-connector.upcoming { background: var(--gray-light); }
+
+  /* UPDATE ITEMS */
+  .update-item {
+    border-left: 3px solid var(--teal-light);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    background: var(--white);
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .update-item.pinned { border-left-color: var(--yellow); background: var(--yellow-pale); }
+  .update-meta { font-size: 0.78rem; color: var(--gray-mid); margin-bottom: 0.35rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  .update-phase-tag {
+    font-size: 0.68rem; padding: 0.12rem 0.45rem; border-radius: 10px;
+    background: var(--teal-pale); color: var(--teal-deep); font-weight: 500;
+  }
+  .update-body { font-size: 0.92rem; line-height: 1.55; white-space: pre-wrap; }
+  .update-photos { display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap; }
+  .update-photo {
+    width: 120px; height: 90px; border-radius: 6px; object-fit: cover;
+    cursor: pointer; border: 1px solid #e0e0e0;
+  }
+
+  /* DECISION CARDS */
+  .decision-card {
+    border: 1px solid #e8ecee; border-radius: 10px; padding: 1.25rem;
+    margin-bottom: 1rem; background: var(--white);
+  }
+  .decision-card.urgent { border-left: 4px solid var(--red); }
+  .decision-card.soon { border-left: 4px solid var(--orange); }
+  .decision-card.normal { border-left: 4px solid var(--teal); }
+  .decision-card.resolved { border-left: 4px solid var(--green); opacity: 0.8; }
+  .urgency-label {
+    font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 0.12rem 0.45rem; border-radius: 4px; display: inline-block;
+  }
+  .urgency-label.urgent { background: var(--red-light); color: var(--red); }
+  .urgency-label.soon { background: var(--orange-light); color: var(--orange); }
+  .urgency-label.normal { background: var(--teal-pale); color: var(--teal-deep); }
+  .urgency-label.resolved { background: var(--green-pale); color: var(--green); }
+  .decision-question { font-size: 1rem; font-weight: 600; margin: 0.5rem 0; }
+  .decision-context { font-size: 0.88rem; color: var(--gray); margin-bottom: 0.6rem; line-height: 1.5; white-space: pre-wrap; }
+  .decision-deadline { font-size: 0.78rem; color: var(--gray-mid); margin-bottom: 0.6rem; }
+  .option-btn {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 1rem;
+    border: 2px solid #e0e0e0; border-radius: 8px; background: var(--white);
+    cursor: pointer; font-size: 0.9rem; transition: all 0.15s; text-align: left;
+    width: 100%; margin-bottom: 0.35rem; font-family: inherit;
+  }
+  .option-btn:hover { border-color: var(--teal); background: var(--teal-pale); }
+  .option-btn.selected { border-color: var(--green); background: var(--green-pale); font-weight: 600; }
+  .option-radio {
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--gray-light);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .option-btn.selected .option-radio { border-color: var(--green); background: var(--green); }
+  .option-btn.selected .option-radio::after { content: '\2713'; color: white; font-size: 0.7rem; }
+  .decision-note-input {
+    width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-light);
+    border-radius: 6px; font-size: 0.85rem; margin-top: 0.4rem; font-family: inherit;
+  }
+  .decision-submitted {
+    margin-top: 0.6rem; padding: 0.5rem 0.75rem; background: var(--green-pale);
+    border-radius: 6px; font-size: 0.85rem; color: var(--green); font-weight: 500;
+  }
+
+  /* SELECTIONS LOG */
+  .sel-table { width: 100%; border-collapse: collapse; }
+  .sel-table th {
+    text-align: left; font-size: 0.75rem; color: var(--gray-mid);
+    text-transform: uppercase; letter-spacing: 0.5px; padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid var(--gray-bg);
+  }
+  .sel-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #f4f4f4; font-size: 0.88rem; }
+  .status-pill {
+    display: inline-block; padding: 0.12rem 0.5rem; border-radius: 10px;
+    font-size: 0.73rem; font-weight: 500;
+  }
+  .status-pill.confirmed { background: var(--green-pale); color: var(--green); }
+  .status-pill.pending { background: var(--yellow-pale); color: #b8960a; }
+  .status-pill.ordered { background: var(--teal-pale); color: var(--teal-deep); }
+  .status-pill.clickable { cursor: pointer; }
+  .status-pill.clickable:hover { opacity: 0.7; }
+
+  /* PHOTO GRID */
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.75rem; }
+  .photo-card { border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; background: white; cursor: pointer; }
+  .photo-card img { width: 100%; height: 150px; object-fit: cover; display: block; }
+  .photo-card .photo-info { padding: 0.5rem 0.7rem; font-size: 0.78rem; }
+  .photo-card .photo-caption { font-weight: 500; }
+  .photo-card .photo-date { color: var(--gray-mid); font-size: 0.7rem; }
+
+  /* FILTER BAR */
+  .filter-bar { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 0.3rem 0.8rem; border-radius: 20px; border: 1px solid var(--gray-light);
+    background: white; font-size: 0.78rem; cursor: pointer; color: var(--gray); font-family: inherit;
+  }
+  .filter-btn:hover { border-color: var(--teal); color: var(--teal); }
+  .filter-btn.active { background: var(--teal); color: white; border-color: var(--teal); }
+
+  /* LIGHTBOX */
+  .lightbox {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+    z-index: 1000; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 92vw; max-height: 92vh; border-radius: 6px; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--gray-mid); }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.6rem; }
+  .empty-state h4 { font-size: 1rem; margin-bottom: 0.3rem; color: var(--gray); }
+
+  /* LOADING SPINNER */
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--gray-light); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay { text-align: center; padding: 2rem; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .site-header { padding: 1.25rem; }
+    .site-header h1 { font-size: 1.4rem; }
+    .header-right { position: static; margin-top: 0.6rem; }
+    .nav-tab { padding: 0.65rem 0.9rem; font-size: 0.8rem; }
+    .main-content { padding: 1rem; }
+    .sel-table th:nth-child(4), .sel-table td:nth-child(4) { display: none; }
+    .timeline-phase { min-width: 65px; }
+    .photo-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h1>7 Ware Lane</h1>
+    <p class="login-sub">Custom Home Build — Project Hub</p>
+    <input type="password" id="passwordInput" placeholder="Enter access code" autocomplete="off">
+    <button onclick="attemptLogin()">Enter</button>
+    <div class="login-error" id="loginError">Invalid access code. Please try again.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="site-header">
+    <h1>7 Ware Lane</h1>
+    <p class="subtitle">Custom Home Build — Project Hub</p>
+    <div class="phase-badge" id="currentPhaseLabel">Loading...</div>
+    <div class="header-right">
+      <span class="role-label" id="roleLabel"></span>
+      <button class="logout-btn" onclick="logout()">Log Out</button>
+    </div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-tab active" data-section="dashboard" onclick="showSection('dashboard',this)">Dashboard</div>
+    <div class="nav-tab" data-section="updates" onclick="showSection('updates',this)">Updates</div>
+    <div class="nav-tab" data-section="decisions" onclick="showSection('decisions',this)">Decisions <span class="badge" id="decisionBadge" style="display:none">0</span></div>
+    <div class="nav-tab" data-section="selections" onclick="showSection('selections',this)">Selections</div>
+    <div class="nav-tab" data-section="photos" onclick="showSection('photos',this)">Photos</div>
+    <div class="nav-tab" data-section="contacts" onclick="showSection('contacts',this)">Contacts</div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="sec-dashboard">
+      <div class="card">
+        <h3 style="margin-bottom:0.75rem;">Project Timeline</h3>
+        <div class="timeline-track" id="timelineTrack"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div class="card" style="border-left:4px solid var(--teal);">
+          <div style="font-size:0.75rem;color:var(--gray-mid);text-transform:uppercase;letter-spacing:0.5px;">Latest Update</div>
+          <div id="dashLatest" style="margin-top:0.35rem;font-size:0.9rem;">—</div>
+        </div>
+        <div class="card" style="border-left:4px solid var(--yellow);">
+          <div style="font-size:0.75rem;color:var(--gray-mid);text-transform:uppercase;letter-spacing:0.5px;">Decisions Needed</div>
+          <div id="dashPending" style="margin-top:0.35rem;font-size:1.4rem;font-weight:700;color:var(--teal-deep);">0</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:0.6rem;">Upcoming Phases</h3>
+        <div id="dashMilestones"></div>
+      </div>
+    </div>
+
+    <!-- UPDATES -->
+    <div class="section" id="sec-updates">
+      <div class="admin-panel builder-only">
+        <h3>Post an Update</h3>
+        <div class="form-group">
+          <label>Phase</label>
+          <select class="form-select phase-select" id="updatePhase"></select>
+        </div>
+        <div class="form-group">
+          <label>Update</label>
+          <textarea class="form-textarea" id="updateText" placeholder="What happened today? What's coming up next?"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Photos (optional)</label>
+          <input type="file" id="updatePhotos" accept="image/*" multiple style="font-size:0.85rem;">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.3rem;margin:0;">
+            <input type="checkbox" id="updatePinned"> Pin this update
+          </label>
+        </div>
+        <button class="btn btn-primary" id="postUpdateBtn" onclick="postUpdate()">Post Update</button>
+      </div>
+      <div id="updatesFeed"><div class="loading-overlay"><span class="spinner"></span></div></div>
+    </div>
+
+    <!-- DECISIONS -->
+    <div class="section" id="sec-decisions">
+      <div class="admin-panel builder-only">
+        <h3>Create a Decision Question</h3>
+        <div class="form-group">
+          <label>Question</label>
+          <input class="form-input" id="dqQuestion" placeholder="e.g., Which tile pattern for the master bath?">
+        </div>
+        <div class="form-group">
+          <label>Context / Details</label>
+          <textarea class="form-textarea" id="dqContext" placeholder="Background info, links, dimensions, constraints..." style="min-height:65px;"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group">
+            <label>Phase</label>
+            <select class="form-select phase-select" id="dqPhase"></select>
+          </div>
+          <div class="form-group">
+            <label>Urgency</label>
+            <select class="form-select" id="dqUrgency">
+              <option value="urgent">Urgent — Blocks work</option>
+              <option value="soon">Soon — Within the week</option>
+              <option value="normal" selected>Standard</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Decision Needed By (optional)</label>
+          <input class="form-input" type="date" id="dqDeadline">
+        </div>
+        <div class="form-group">
+          <label>Options</label>
+          <div id="dqOptions">
+            <input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option A">
+            <input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option B">
+          </div>
+          <button class="btn btn-sm btn-secondary" style="margin-top:0.25rem;" onclick="addDqOption()">+ Add option</button>
+        </div>
+        <button class="btn btn-primary" id="postDecisionBtn" onclick="createDecision()">Post Decision</button>
+      </div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="setDecisionFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setDecisionFilter('pending',this)">Pending</button>
+        <button class="filter-btn" onclick="setDecisionFilter('urgent',this)">Urgent</button>
+        <button class="filter-btn" onclick="setDecisionFilter('resolved',this)">Resolved</button>
+      </div>
+      <div id="decisionsList"><div class="loading-overlay"><span class="spinner"></span></div></div>
+    </div>
+
+    <!-- SELECTIONS -->
+    <div class="section" id="sec-selections">
+      <div class="admin-panel builder-only">
+        <h3>Log a Selection</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group"><label>Category</label><input class="form-input" id="selCat" placeholder="e.g., Flooring, Paint, Fixtures"></div>
+          <div class="form-group"><label>Item / Selection</label><input class="form-input" id="selItem" placeholder="e.g., Shaw LVP, Alabaster White"></div>
+          <div class="form-group"><label>Location / Room</label><input class="form-input" id="selLoc" placeholder="e.g., Master Bedroom, Kitchen"></div>
+          <div class="form-group"><label>Status</label>
+            <select class="form-select" id="selStatus">
+              <option value="pending">Pending Confirmation</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="ordered">Ordered</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Notes</label><input class="form-input" id="selNotes" placeholder="SKU, vendor, lead time..."></div>
+        <button class="btn btn-primary" onclick="addSelection()">Add to Log</button>
+      </div>
+      <div class="card" id="selectionsCard">
+        <div id="selectionsBody"><div class="loading-overlay"><span class="spinner"></span></div></div>
+      </div>
+    </div>
+
+    <!-- PHOTOS -->
+    <div class="section" id="sec-photos">
+      <div class="admin-panel builder-only">
+        <h3>Upload Photos</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group"><label>Room / Area</label><input class="form-input" id="photoRoom" placeholder="e.g., Kitchen, Exterior"></div>
+          <div class="form-group"><label>Phase</label><select class="form-select phase-select" id="photoPhase"></select></div>
+        </div>
+        <div class="form-group"><label>Caption</label><input class="form-input" id="photoCaption" placeholder="Brief description"></div>
+        <div class="form-group"><label>Select Photos</label><input type="file" id="photoFiles" accept="image/*" multiple style="font-size:0.85rem;"></div>
+        <button class="btn btn-primary" id="uploadPhotosBtn" onclick="uploadPhotos()">Upload</button>
+      </div>
+      <div class="filter-bar" id="photoFilterBar"></div>
+      <div class="photo-grid" id="photoGrid"><div class="loading-overlay"><span class="spinner"></span></div></div>
+    </div>
+
+    <!-- CONTACTS -->
+    <div class="section" id="sec-contacts">
+      <div class="admin-panel builder-only">
+        <h3>Add Contact</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div class="form-group"><label>Name</label><input class="form-input" id="ctName" placeholder="John Smith"></div>
+          <div class="form-group"><label>Role</label><input class="form-input" id="ctRole" placeholder="Electrician, Plumber, GC"></div>
+          <div class="form-group"><label>Phone</label><input class="form-input" id="ctPhone" placeholder="(555) 123-4567"></div>
+          <div class="form-group"><label>Email</label><input class="form-input" id="ctEmail" placeholder="email@example.com"></div>
+        </div>
+        <div class="form-group"><label>Notes</label><input class="form-input" id="ctNotes" placeholder="Availability, specialty..."></div>
+        <button class="btn btn-primary" onclick="addContact()">Add Contact</button>
+      </div>
+      <div id="contactsList"><div class="loading-overlay"><span class="spinner"></span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('open')">
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+<script>
+// ================================================================
+//  SUPABASE CONFIG
+// ================================================================
+const SUPABASE_URL = 'https://xhlwkfhrivucphlwtubl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhobHdrZmhyaXZ1Y3BobHd0dWJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MTAyMTQsImV4cCI6MjA5MDI4NjIxNH0.232ODTINaIApqoNz7toie9thSFQMWPonevggbojfRbo';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ================================================================
+//  STATE
+// ================================================================
+let role = null; // 'builder' or 'homeowner'
+let phases = [];
+let updates = [];
+let decisions = [];
+let selections = [];
+let photos = [];
+let contacts = [];
+let decisionFilter = 'all';
+let photoFilterRoom = 'all';
+let selectedOpts = {}; // decisionId -> optionIndex
+
+// ================================================================
+//  AUTH (client-side password gating)
+// ================================================================
+document.getElementById('passwordInput').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+
+async function attemptLogin() {
+  const pw = document.getElementById('passwordInput').value.trim();
+  if (!pw) return;
+  const { data } = await sb.from('hub_config').select('key, value').in('key', ['builder_password', 'homeowner_password']);
+  if (!data) return;
+  const bp = data.find(r => r.key === 'builder_password');
+  const hp = data.find(r => r.key === 'homeowner_password');
+  if (bp && pw === bp.value) { role = 'builder'; }
+  else if (hp && pw === hp.value) { role = 'homeowner'; }
+  else {
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+  sessionStorage.setItem('hub_role', role);
+  enterApp();
+}
+
+function logout() {
+  sessionStorage.removeItem('hub_role');
+  role = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+function enterApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('roleLabel').textContent = role === 'builder' ? 'Builder View' : 'Homeowner View';
+  document.querySelectorAll('.builder-only').forEach(el => {
+    el.style.display = role === 'builder' ? 'block' : 'none';
+  });
+  loadAll();
+  setupRealtime();
+}
+
+// Resume session
+(function checkSession() {
+  const saved = sessionStorage.getItem('hub_role');
+  if (saved === 'builder' || saved === 'homeowner') {
+    role = saved;
+    enterApp();
+  }
+})();
+
+// ================================================================
+//  DATA LOADING
+// ================================================================
+async function loadAll() {
+  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts()]);
+  renderDashboard();
+}
+
+async function loadPhases() {
+  const { data } = await sb.from('hub_phases').select('*').order('sort_order');
+  if (data) { phases = data; renderTimeline(); populatePhaseSelects(); }
+}
+async function loadUpdates() {
+  const { data } = await sb.from('hub_updates').select('*').order('created_at', { ascending: false });
+  if (data) { updates = data; renderUpdates(); }
+}
+async function loadDecisions() {
+  const { data } = await sb.from('hub_decisions').select('*').order('created_at', { ascending: false });
+  if (data) { decisions = data; renderDecisions(); updateBadge(); }
+}
+async function loadSelections() {
+  const { data } = await sb.from('hub_selections').select('*').order('created_at', { ascending: false });
+  if (data) { selections = data; renderSelections(); }
+}
+async function loadPhotos() {
+  const { data } = await sb.from('hub_photos').select('*').order('created_at', { ascending: false });
+  if (data) { photos = data; renderPhotos(); }
+}
+async function loadContacts() {
+  const { data } = await sb.from('hub_contacts').select('*').order('created_at');
+  if (data) { contacts = data; renderContacts(); }
+}
+
+// ================================================================
+//  REALTIME
+// ================================================================
+function setupRealtime() {
+  sb.channel('hub-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_updates' }, () => loadUpdates())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_decisions' }, () => { loadDecisions(); renderDashboard(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_photos' }, () => loadPhotos())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_phases' }, () => { loadPhases(); renderDashboard(); })
+    .subscribe();
+}
+
+// ================================================================
+//  NAVIGATION
+// ================================================================
+function showSection(id, tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  if (tab) tab.classList.add('active');
+}
+
+// ================================================================
+//  TIMELINE
+// ================================================================
+function renderTimeline() {
+  const track = document.getElementById('timelineTrack');
+  const cur = phases.find(p => p.status === 'current');
+  document.getElementById('currentPhaseLabel').textContent = cur ? 'Currently: ' + cur.name : 'In Progress';
+  track.innerHTML = phases.map((p, i) => {
+    const conn = i < phases.length - 1 ? `<div class="timeline-connector ${p.status}"></div>` : '';
+    const clickable = role === 'builder' ? ' clickable' : '';
+    const click = role === 'builder' ? ` onclick="cyclePhase('${p.id}')"` : '';
+    return `<div class="timeline-phase">
+      ${conn}
+      <div class="timeline-dot ${p.status}${clickable}" title="${role === 'builder' ? 'Click to change status' : p.name}"${click}>${p.status === 'completed' ? '✓' : (i+1)}</div>
+      <div class="timeline-label${p.status === 'current' ? ' current' : ''}">${p.name}</div>
+    </div>`;
+  }).join('');
+}
+
+async function cyclePhase(id) {
+  const p = phases.find(x => x.id === id);
+  if (!p) return;
+  const order = ['completed', 'current', 'upcoming'];
+  const next = order[(order.indexOf(p.status) + 1) % 3];
+  await sb.from('hub_phases').update({ status: next, updated_at: new Date().toISOString() }).eq('id', id);
+  await loadPhases();
+  renderDashboard();
+}
+
+function populatePhaseSelects() {
+  document.querySelectorAll('.phase-select').forEach(sel => {
+    const val = sel.value;
+    const cur = phases.find(p => p.status === 'current');
+    sel.innerHTML = phases.map(p =>
+      `<option value="${p.id}"${p.id === (val || (cur ? cur.id : '')) ? ' selected' : ''}>${p.name}${p.status === 'current' ? ' ★' : ''}</option>`
+    ).join('');
+  });
+}
+
+// ================================================================
+//  DASHBOARD
+// ================================================================
+function renderDashboard() {
+  const latestDiv = document.getElementById('dashLatest');
+  if (updates.length) {
+    const u = updates[0];
+    latestDiv.innerHTML = `<div style="font-size:0.78rem;color:var(--gray-mid);">${fmtDate(u.created_at)}</div><div style="margin-top:0.15rem;">${esc(u.body).slice(0, 120)}${u.body.length > 120 ? '...' : ''}</div>`;
+  } else {
+    latestDiv.textContent = 'No updates yet';
+  }
+  const pending = decisions.filter(d => !d.response).length;
+  document.getElementById('dashPending').textContent = pending;
+
+  const milestones = document.getElementById('dashMilestones');
+  const cur = phases.find(p => p.status === 'current');
+  const upcoming = phases.filter(p => p.status === 'upcoming').slice(0, 4);
+  let html = '';
+  if (cur) html += `<div style="padding:0.35rem 0;display:flex;align-items:center;gap:0.5rem;"><span style="color:var(--yellow);font-size:1.1rem;">●</span><span style="font-weight:600;">${esc(cur.name)}</span><span style="font-size:0.78rem;color:var(--gray-mid);">In Progress</span></div>`;
+  upcoming.forEach(p => {
+    html += `<div style="padding:0.35rem 0;display:flex;align-items:center;gap:0.5rem;"><span style="color:var(--gray-light);font-size:1.1rem;">○</span><span>${esc(p.name)}</span></div>`;
+  });
+  milestones.innerHTML = html || '<p style="color:var(--gray-mid);">All phases complete!</p>';
+}
+
+// ================================================================
+//  UPDATES
+// ================================================================
+async function postUpdate() {
+  const body = document.getElementById('updateText').value.trim();
+  if (!body) return;
+  const btn = document.getElementById('postUpdateBtn');
+  btn.disabled = true; btn.textContent = 'Posting...';
+
+  const phaseId = document.getElementById('updatePhase').value;
+  const pinned = document.getElementById('updatePinned').checked;
+  const fileInput = document.getElementById('updatePhotos');
+
+  // Insert update
+  const { data: upd, error } = await sb.from('hub_updates').insert({ phase_id: phaseId, body, pinned }).select().single();
+  if (error) { alert('Error posting update'); btn.disabled = false; btn.textContent = 'Post Update'; return; }
+
+  // Upload photos
+  if (fileInput.files.length) {
+    for (const file of fileInput.files) {
+      const path = `updates/${upd.id}/${Date.now()}_${file.name}`;
+      const { error: upErr } = await sb.storage.from('hub-photos').upload(path, file);
+      if (!upErr) {
+        const { data: urlData } = sb.storage.from('hub-photos').getPublicUrl(path);
+        await sb.from('hub_photos').insert({
+          update_id: upd.id, storage_path: path, url: urlData.publicUrl,
+          room: '', phase_id: phaseId, caption: body.slice(0, 80)
+        });
+      }
+    }
+  }
+
+  document.getElementById('updateText').value = '';
+  document.getElementById('updatePinned').checked = false;
+  fileInput.value = '';
+  btn.disabled = false; btn.textContent = 'Post Update';
+  await loadUpdates();
+  await loadPhotos();
+  renderDashboard();
+}
+
+function renderUpdates() {
+  const feed = document.getElementById('updatesFeed');
+  if (!updates.length) {
+    feed.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h4>No updates yet</h4><p>Updates will appear here as the build progresses.</p></div>';
+    return;
+  }
+  const sorted = [...updates].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  feed.innerHTML = sorted.map(u => {
+    const phaseName = (phases.find(p => p.id === u.phase_id) || {}).name || '';
+    const uPhotos = photos.filter(p => p.update_id === u.id);
+    const photosHtml = uPhotos.map(p => `<img class="update-photo" src="${p.url}" onclick="openLightbox('${p.url}')" alt="photo">`).join('');
+    const del = role === 'builder' ? ` <button class="btn-danger" onclick="deleteUpdate('${u.id}')">✕</button>` : '';
+    return `<div class="update-item${u.pinned ? ' pinned' : ''}">
+      <div class="update-meta">
+        <span>${fmtDate(u.created_at)}</span>
+        ${phaseName ? `<span class="update-phase-tag">${esc(phaseName)}</span>` : ''}
+        ${u.pinned ? '<span style="font-size:0.73rem;">📌 Pinned</span>' : ''}
+        ${del}
+      </div>
+      <div class="update-body">${esc(u.body)}</div>
+      ${photosHtml ? '<div class="update-photos">' + photosHtml + '</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function deleteUpdate(id) {
+  if (!confirm('Delete this update?')) return;
+  // delete associated photos from storage
+  const uPhotos = photos.filter(p => p.update_id === id);
+  for (const p of uPhotos) {
+    await sb.storage.from('hub-photos').remove([p.storage_path]);
+    await sb.from('hub_photos').delete().eq('id', p.id);
+  }
+  await sb.from('hub_updates').delete().eq('id', id);
+  await loadUpdates();
+  await loadPhotos();
+}
+
+// ================================================================
+//  DECISIONS
+// ================================================================
+let dqOptCount = 2;
+function addDqOption() {
+  dqOptCount++;
+  const div = document.getElementById('dqOptions');
+  const inp = document.createElement('input');
+  inp.className = 'form-input';
+  inp.style.marginBottom = '0.35rem';
+  inp.placeholder = 'Option ' + String.fromCharCode(64 + dqOptCount);
+  div.appendChild(inp);
+}
+
+async function createDecision() {
+  const question = document.getElementById('dqQuestion').value.trim();
+  if (!question) return;
+  const optInputs = document.querySelectorAll('#dqOptions input');
+  const options = [];
+  optInputs.forEach(inp => { if (inp.value.trim()) options.push(inp.value.trim()); });
+  if (options.length < 2) return alert('Provide at least 2 options.');
+
+  const btn = document.getElementById('postDecisionBtn');
+  btn.disabled = true; btn.textContent = 'Posting...';
+
+  await sb.from('hub_decisions').insert({
+    question,
+    context: document.getElementById('dqContext').value.trim() || null,
+    phase_id: document.getElementById('dqPhase').value,
+    urgency: document.getElementById('dqUrgency').value,
+    deadline: document.getElementById('dqDeadline').value || null,
+    options: JSON.stringify(options),
+    allow_note: true
+  });
+
+  // Reset form
+  document.getElementById('dqQuestion').value = '';
+  document.getElementById('dqContext').value = '';
+  document.getElementById('dqDeadline').value = '';
+  document.getElementById('dqOptions').innerHTML = '<input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option A"><input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option B">';
+  dqOptCount = 2;
+  btn.disabled = false; btn.textContent = 'Post Decision';
+  await loadDecisions();
+  renderDashboard();
+}
+
+function setDecisionFilter(f, btn) {
+  decisionFilter = f;
+  document.querySelectorAll('#sec-decisions .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderDecisions();
+}
+
+function renderDecisions() {
+  const list = document.getElementById('decisionsList');
+  let ds = [...decisions];
+  if (decisionFilter === 'pending') ds = ds.filter(d => !d.response);
+  else if (decisionFilter === 'urgent') ds = ds.filter(d => d.urgency === 'urgent' && !d.response);
+  else if (decisionFilter === 'resolved') ds = ds.filter(d => d.response);
+
+  const uOrder = { urgent: 0, soon: 1, normal: 2 };
+  ds.sort((a, b) => {
+    if (!a.response && b.response) return -1;
+    if (a.response && !b.response) return 1;
+    return (uOrder[a.urgency] || 2) - (uOrder[b.urgency] || 2);
+  });
+
+  if (!ds.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🤔</div><h4>No decisions here</h4><p>Decision questions will appear when posted.</p></div>';
+    return;
+  }
+
+  list.innerHTML = ds.map(d => {
+    const phaseName = (phases.find(p => p.id === d.phase_id) || {}).name || '';
+    const resolved = !!d.response;
+    const urgClass = resolved ? 'resolved' : d.urgency;
+    const opts = typeof d.options === 'string' ? JSON.parse(d.options) : d.options;
+    const del = role === 'builder' ? `<button class="btn-danger" onclick="deleteDecision('${d.id}')">✕</button>` : '';
+
+    let optionsHtml = '';
+    if (resolved) {
+      optionsHtml = `<div class="decision-submitted">
+        <strong>Selected:</strong> ${esc(d.response)}
+        ${d.response_note ? '<br><em style="font-size:0.82rem;">' + esc(d.response_note) + '</em>' : ''}
+        <div style="font-size:0.73rem;color:var(--gray-mid);margin-top:0.2rem;">${fmtDate(d.response_date)}</div>
+      </div>`;
+      if (role === 'builder') {
+        optionsHtml += `<button class="btn btn-sm btn-secondary" style="margin-top:0.5rem;" onclick="reopenDecision('${d.id}')">Reopen</button>`;
+      }
+    } else {
+      optionsHtml = opts.map((opt, i) =>
+        `<button class="option-btn${selectedOpts[d.id] === i ? ' selected' : ''}" onclick="selectOpt('${d.id}',${i},this)">
+          <span class="option-radio"></span><span>${esc(opt)}</span>
+        </button>`
+      ).join('');
+      optionsHtml += `<input class="decision-note-input" id="dnote-${d.id}" placeholder="Add a note (optional)">`;
+      optionsHtml += `<button class="btn btn-sm btn-green" style="margin-top:0.5rem;" onclick="submitDecision('${d.id}')" id="dsub-${d.id}" ${selectedOpts[d.id] === undefined ? 'disabled' : ''}>Submit Answer</button>`;
+    }
+
+    return `<div class="decision-card ${urgClass}">
+      <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div>
+          <span class="urgency-label ${urgClass}">${resolved ? 'Resolved' : d.urgency}</span>
+          <span style="font-size:0.73rem;color:var(--gray-mid);margin-left:0.5rem;">${esc(phaseName)}</span>
+        </div>
+        ${del}
+      </div>
+      <div class="decision-question">${esc(d.question)}</div>
+      ${d.context ? '<div class="decision-context">' + esc(d.context) + '</div>' : ''}
+      ${d.deadline && !resolved ? '<div class="decision-deadline">⏰ Needed by: ' + fmtDate(d.deadline) + '</div>' : ''}
+      ${optionsHtml}
+    </div>`;
+  }).join('');
+}
+
+function selectOpt(decId, idx, btn) {
+  selectedOpts[decId] = idx;
+  const card = btn.closest('.decision-card');
+  card.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const sub = document.getElementById('dsub-' + decId);
+  if (sub) sub.disabled = false;
+}
+
+async function submitDecision(decId) {
+  const d = decisions.find(x => x.id === decId);
+  if (!d || selectedOpts[decId] === undefined) return;
+  const opts = typeof d.options === 'string' ? JSON.parse(d.options) : d.options;
+  const note = (document.getElementById('dnote-' + decId) || {}).value || '';
+  await sb.from('hub_decisions').update({
+    response: opts[selectedOpts[decId]],
+    response_note: note.trim() || null,
+    response_date: new Date().toISOString()
+  }).eq('id', decId);
+  delete selectedOpts[decId];
+  await loadDecisions();
+  renderDashboard();
+}
+
+async function reopenDecision(decId) {
+  await sb.from('hub_decisions').update({ response: null, response_note: null, response_date: null }).eq('id', decId);
+  await loadDecisions();
+  renderDashboard();
+}
+
+async function deleteDecision(id) {
+  if (!confirm('Delete this decision?')) return;
+  await sb.from('hub_decisions').delete().eq('id', id);
+  await loadDecisions();
+  renderDashboard();
+}
+
+function updateBadge() {
+  const pending = decisions.filter(d => !d.response).length;
+  const badge = document.getElementById('decisionBadge');
+  badge.style.display = pending > 0 ? 'inline' : 'none';
+  badge.textContent = pending;
+}
+
+// ================================================================
+//  SELECTIONS
+// ================================================================
+async function addSelection() {
+  const cat = document.getElementById('selCat').value.trim();
+  const item = document.getElementById('selItem').value.trim();
+  if (!cat || !item) return alert('Category and Item are required.');
+  await sb.from('hub_selections').insert({
+    category: cat, item,
+    location: document.getElementById('selLoc').value.trim() || null,
+    status: document.getElementById('selStatus').value,
+    notes: document.getElementById('selNotes').value.trim() || null
+  });
+  ['selCat','selItem','selLoc','selNotes'].forEach(id => document.getElementById(id).value = '');
+  await loadSelections();
+}
+
+function renderSelections() {
+  const body = document.getElementById('selectionsBody');
+  if (!selections.length) {
+    body.innerHTML = '<div class="empty-state"><p>No selections logged yet.</p></div>';
+    return;
+  }
+  const clickable = role === 'builder' ? ' clickable' : '';
+  body.innerHTML = `<table class="sel-table"><thead><tr>
+    <th>Category</th><th>Selection</th><th>Location</th><th>Status</th>${role === 'builder' ? '<th></th>' : ''}
+  </tr></thead><tbody>
+  ${selections.map(s => `<tr>
+    <td><strong>${esc(s.category)}</strong></td>
+    <td>${esc(s.item)}${s.notes ? '<br><span style="font-size:0.76rem;color:var(--gray-mid);">' + esc(s.notes) + '</span>' : ''}</td>
+    <td>${esc(s.location || '')}</td>
+    <td><span class="status-pill ${s.status}${clickable}" ${role === 'builder' ? `onclick="cycleSel('${s.id}')" title="Click to change"` : ''}>${s.status}</span></td>
+    ${role === 'builder' ? `<td><button class="btn-danger" onclick="deleteSel('${s.id}')">✕</button></td>` : ''}
+  </tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function cycleSel(id) {
+  const s = selections.find(x => x.id === id);
+  if (!s) return;
+  const order = ['pending', 'confirmed', 'ordered'];
+  const next = order[(order.indexOf(s.status) + 1) % 3];
+  await sb.from('hub_selections').update({ status: next }).eq('id', id);
+  await loadSelections();
+}
+
+async function deleteSel(id) {
+  if (!confirm('Delete this selection?')) return;
+  await sb.from('hub_selections').delete().eq('id', id);
+  await loadSelections();
+}
+
+// ================================================================
+//  PHOTOS
+// ================================================================
+async function uploadPhotos() {
+  const fileInput = document.getElementById('photoFiles');
+  if (!fileInput.files.length) return alert('Select photos first.');
+  const btn = document.getElementById('uploadPhotosBtn');
+  btn.disabled = true; btn.textContent = 'Uploading...';
+  const room = document.getElementById('photoRoom').value.trim();
+  const phaseId = document.getElementById('photoPhase').value;
+  const caption = document.getElementById('photoCaption').value.trim();
+
+  for (const file of fileInput.files) {
+    const path = `gallery/${Date.now()}_${Math.random().toString(36).slice(2,6)}_${file.name}`;
+    const { error } = await sb.storage.from('hub-photos').upload(path, file);
+    if (!error) {
+      const { data: urlData } = sb.storage.from('hub-photos').getPublicUrl(path);
+      await sb.from('hub_photos').insert({
+        storage_path: path, url: urlData.publicUrl,
+        room: room || null, phase_id: phaseId, caption: caption || null
+      });
+    }
+  }
+  fileInput.value = '';
+  document.getElementById('photoCaption').value = '';
+  btn.disabled = false; btn.textContent = 'Upload';
+  await loadPhotos();
+}
+
+function renderPhotos() {
+  // Filter bar
+  const bar = document.getElementById('photoFilterBar');
+  const rooms = [...new Set(photos.map(p => p.room).filter(Boolean))];
+  bar.innerHTML = `<button class="filter-btn ${photoFilterRoom === 'all' ? 'active' : ''}" onclick="setPhotoFilter('all')">All</button>` +
+    rooms.map(r => `<button class="filter-btn ${photoFilterRoom === r ? 'active' : ''}" onclick="setPhotoFilter('${esc(r)}')">${esc(r)}</button>`).join('');
+
+  const grid = document.getElementById('photoGrid');
+  let ps = photos;
+  if (photoFilterRoom !== 'all') ps = ps.filter(p => p.room === photoFilterRoom);
+
+  if (!ps.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">📷</div><h4>No photos yet</h4></div>';
+    return;
+  }
+  grid.innerHTML = ps.map(p => {
+    const phaseName = (phases.find(ph => ph.id === p.phase_id) || {}).name || '';
+    const del = role === 'builder' ? `<button class="btn-danger" onclick="event.stopPropagation();deletePhoto('${p.id}','${p.storage_path}')" style="float:right;">✕</button>` : '';
+    return `<div class="photo-card" onclick="openLightbox('${p.url}')">
+      <img src="${p.url}" alt="${esc(p.caption || '')}" loading="lazy">
+      <div class="photo-info">
+        ${del}
+        <div class="photo-caption">${esc(p.caption || p.room || 'Photo')}</div>
+        <div class="photo-date">${esc(phaseName)} · ${fmtDate(p.created_at)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setPhotoFilter(r) { photoFilterRoom = r; renderPhotos(); }
+
+async function deletePhoto(id, path) {
+  if (!confirm('Delete this photo?')) return;
+  await sb.storage.from('hub-photos').remove([path]);
+  await sb.from('hub_photos').delete().eq('id', id);
+  await loadPhotos();
+}
+
+// ================================================================
+//  CONTACTS
+// ================================================================
+async function addContact() {
+  const name = document.getElementById('ctName').value.trim();
+  if (!name) return alert('Name is required.');
+  await sb.from('hub_contacts').insert({
+    name,
+    role: document.getElementById('ctRole').value.trim() || null,
+    phone: document.getElementById('ctPhone').value.trim() || null,
+    email: document.getElementById('ctEmail').value.trim() || null,
+    notes: document.getElementById('ctNotes').value.trim() || null
+  });
+  ['ctName','ctRole','ctPhone','ctEmail','ctNotes'].forEach(id => document.getElementById(id).value = '');
+  await loadContacts();
+}
+
+function renderContacts() {
+  const list = document.getElementById('contactsList');
+  if (!contacts.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📞</div><h4>No contacts yet</h4></div>';
+    return;
+  }
+  list.innerHTML = contacts.map(c => {
+    const del = role === 'builder' ? `<button class="btn-danger" onclick="deleteContact('${c.id}')">✕</button>` : '';
+    return `<div class="card" style="display:flex;justify-content:space-between;align-items:start;">
+      <div>
+        <div style="font-weight:600;">${esc(c.name)}</div>
+        ${c.role ? `<div style="font-size:0.85rem;color:var(--teal-deep);margin-top:0.1rem;">${esc(c.role)}</div>` : ''}
+        ${c.phone ? `<div style="font-size:0.88rem;margin-top:0.3rem;"><a href="tel:${esc(c.phone)}">${esc(c.phone)}</a></div>` : ''}
+        ${c.email ? `<div style="font-size:0.88rem;margin-top:0.1rem;"><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></div>` : ''}
+        ${c.notes ? `<div style="font-size:0.82rem;color:var(--gray-mid);margin-top:0.25rem;">${esc(c.notes)}</div>` : ''}
+      </div>
+      ${del}
+    </div>`;
+  }).join('');
+}
+
+async function deleteContact(id) {
+  if (!confirm('Delete this contact?')) return;
+  await sb.from('hub_contacts').delete().eq('id', id);
+  await loadContacts();
+}
+
+// ================================================================
+//  LIGHTBOX
+// ================================================================
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+// ================================================================
+//  UTILITIES
+// ================================================================
+function fmtDate(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  const now = new Date();
+  const diff = now - date;
+  if (diff < 86400000 && date.getDate() === now.getDate()) return 'Today ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (diff < 172800000 && (now.getDate() - date.getDate() === 1 || (now.getDate() === 1 && date.getDate() > 27))) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>
