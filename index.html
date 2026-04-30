@@ -153,6 +153,7 @@
   .main-content { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
   .section { display: none; }
   .section.active { display: block; }
+  .builder-hidden { display: none !important; }
 
   /* CARD */
   .card {
@@ -278,6 +279,27 @@
     border: 2px solid #e0e0e0; border-radius: 8px; background: var(--white);
     cursor: pointer; font-size: 0.9rem; transition: all 0.15s; text-align: left;
     width: 100%; margin-bottom: 0.35rem; font-family: inherit;
+  }
+  .option-img {
+    width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px;
+    margin-top: 0.4rem; cursor: pointer;
+  }
+  .option-img-wrap {
+    flex: 1; display: flex; flex-direction: column;
+  }
+  .dq-opt-row {
+    display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.35rem;
+  }
+  .dq-opt-row input[type="text"] { flex: 1; }
+  .dq-opt-row label.dq-img-label {
+    font-size: 0.72rem; color: var(--teal); cursor: pointer;
+    white-space: nowrap; padding: 0.25rem 0.5rem; border: 1px solid var(--teal-light);
+    border-radius: 4px; background: var(--teal-pale);
+  }
+  .dq-opt-row label.dq-img-label:hover { background: var(--teal-light); color: white; }
+  .dq-opt-row .dq-img-name {
+    font-size: 0.68rem; color: var(--gray-mid); max-width: 80px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .option-btn:hover { border-color: var(--teal); background: var(--teal-pale); }
   .option-btn.selected { border-color: var(--green); background: var(--green-pale); font-weight: 600; }
@@ -577,8 +599,16 @@
         <div class="form-group">
           <label>Options</label>
           <div id="dqOptions">
-            <input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option A">
-            <input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option B">
+            <div class="dq-opt-row">
+              <input class="form-input" type="text" placeholder="Option A">
+              <label class="dq-img-label">Photo <input type="file" accept="image/*" style="display:none;" onchange="dqImgPicked(this)"></label>
+              <span class="dq-img-name"></span>
+            </div>
+            <div class="dq-opt-row">
+              <input class="form-input" type="text" placeholder="Option B">
+              <label class="dq-img-label">Photo <input type="file" accept="image/*" style="display:none;" onchange="dqImgPicked(this)"></label>
+              <span class="dq-img-name"></span>
+            </div>
           </div>
           <button class="btn btn-sm btn-secondary" style="margin-top:0.25rem;" onclick="addDqOption()">+ Add option</button>
         </div>
@@ -803,7 +833,8 @@ function enterApp() {
   document.getElementById('app').classList.add('visible');
   document.getElementById('roleLabel').textContent = role === 'builder' ? 'Builder View' : 'Homeowner View';
   document.querySelectorAll('.builder-only').forEach(el => {
-    el.style.display = role === 'builder' ? 'block' : 'none';
+    if (role === 'builder') { el.classList.remove('builder-hidden'); }
+    else { el.classList.add('builder-hidden'); }
   });
   loadAll();
   setupRealtime();
@@ -1030,24 +1061,48 @@ let dqOptCount = 2;
 function addDqOption() {
   dqOptCount++;
   const div = document.getElementById('dqOptions');
-  const inp = document.createElement('input');
-  inp.className = 'form-input';
-  inp.style.marginBottom = '0.35rem';
-  inp.placeholder = 'Option ' + String.fromCharCode(64 + dqOptCount);
-  div.appendChild(inp);
+  const row = document.createElement('div');
+  row.className = 'dq-opt-row';
+  row.innerHTML = `<input class="form-input" type="text" placeholder="Option ${String.fromCharCode(64 + dqOptCount)}">
+    <label class="dq-img-label">Photo <input type="file" accept="image/*" style="display:none;" onchange="dqImgPicked(this)"></label>
+    <span class="dq-img-name"></span>`;
+  div.appendChild(row);
+}
+
+function dqImgPicked(fileInput) {
+  const nameSpan = fileInput.closest('.dq-opt-row').querySelector('.dq-img-name');
+  nameSpan.textContent = fileInput.files[0] ? fileInput.files[0].name : '';
 }
 
 async function createDecision() {
   const question = document.getElementById('dqQuestion').value.trim();
   if (!question) return;
-  const optInputs = document.querySelectorAll('#dqOptions input');
+  const rows = document.querySelectorAll('#dqOptions .dq-opt-row');
   const options = [];
-  optInputs.forEach(inp => { if (inp.value.trim()) options.push(inp.value.trim()); });
-  if (options.length < 2) return alert('Provide at least 2 options.');
 
   const btn = document.getElementById('postDecisionBtn');
-  btn.disabled = true; btn.textContent = 'Posting...';
+  btn.disabled = true; btn.textContent = 'Uploading...';
 
+  for (const row of rows) {
+    const text = row.querySelector('input[type="text"]').value.trim();
+    if (!text) continue;
+    const fileInput = row.querySelector('input[type="file"]');
+    let image = null;
+    if (fileInput && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      const path = 'decisions/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + file.name.split('.').pop();
+      const { error } = await sb.storage.from('hub-photos').upload(path, file);
+      if (!error) {
+        const { data: urlData } = sb.storage.from('hub-photos').getPublicUrl(path);
+        image = urlData.publicUrl;
+      }
+    }
+    options.push(image ? { text, image } : text);
+  }
+
+  if (options.length < 2) { btn.disabled = false; btn.textContent = 'Post Decision'; return alert('Provide at least 2 options.'); }
+
+  btn.textContent = 'Posting...';
   await sb.from('hub_decisions').insert({
     question,
     context: document.getElementById('dqContext').value.trim() || null,
@@ -1062,7 +1117,16 @@ async function createDecision() {
   document.getElementById('dqQuestion').value = '';
   document.getElementById('dqContext').value = '';
   document.getElementById('dqDeadline').value = '';
-  document.getElementById('dqOptions').innerHTML = '<input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option A"><input class="form-input" style="margin-bottom:0.35rem;" placeholder="Option B">';
+  document.getElementById('dqOptions').innerHTML = `<div class="dq-opt-row">
+      <input class="form-input" type="text" placeholder="Option A">
+      <label class="dq-img-label">Photo <input type="file" accept="image/*" style="display:none;" onchange="dqImgPicked(this)"></label>
+      <span class="dq-img-name"></span>
+    </div>
+    <div class="dq-opt-row">
+      <input class="form-input" type="text" placeholder="Option B">
+      <label class="dq-img-label">Photo <input type="file" accept="image/*" style="display:none;" onchange="dqImgPicked(this)"></label>
+      <span class="dq-img-name"></span>
+    </div>`;
   dqOptCount = 2;
   btn.disabled = false; btn.textContent = 'Post Decision';
   await loadDecisions();
@@ -1104,8 +1168,12 @@ function renderDecisions() {
 
     let optionsHtml = '';
     if (resolved) {
+      const chosenOpt = opts.find(o => (typeof o === 'string' ? o : o.text) === d.response);
+      const chosenImg = chosenOpt && typeof chosenOpt === 'object' && chosenOpt.image
+        ? `<img class="option-img" src="${escAttr(chosenOpt.image)}" onclick="openLightbox('${escAttr(chosenOpt.image)}')" alt="">` : '';
       optionsHtml = `<div class="decision-submitted">
         <strong>Selected:</strong> ${esc(d.response)}
+        ${chosenImg}
         ${d.response_note ? '<br><em style="font-size:0.82rem;">' + esc(d.response_note) + '</em>' : ''}
         <div style="font-size:0.73rem;color:var(--gray-mid);margin-top:0.2rem;">${fmtDate(d.response_date)}</div>
       </div>`;
@@ -1113,11 +1181,15 @@ function renderDecisions() {
         optionsHtml += `<button class="btn btn-sm btn-secondary" style="margin-top:0.5rem;" onclick="reopenDecision('${d.id}')">Reopen</button>`;
       }
     } else {
-      optionsHtml = opts.map((opt, i) =>
-        `<button class="option-btn${selectedOpts[d.id] === i ? ' selected' : ''}" onclick="selectOpt('${d.id}',${i},this)">
-          <span class="option-radio"></span><span>${esc(opt)}</span>
-        </button>`
-      ).join('');
+      optionsHtml = opts.map((opt, i) => {
+        const optText = typeof opt === 'string' ? opt : opt.text;
+        const optImg = typeof opt === 'object' && opt.image
+          ? `<img class="option-img" src="${escAttr(opt.image)}" onclick="event.stopPropagation();openLightbox('${escAttr(opt.image)}')" alt="">` : '';
+        return `<button class="option-btn${selectedOpts[d.id] === i ? ' selected' : ''}" onclick="selectOpt('${d.id}',${i},this)">
+          <span class="option-radio"></span>
+          <span class="option-img-wrap"><span>${esc(optText)}</span>${optImg}</span>
+        </button>`;
+      }).join('');
       optionsHtml += `<input class="decision-note-input" id="dnote-${d.id}" placeholder="Add a note (optional)">`;
       optionsHtml += `<button class="btn btn-sm btn-green" style="margin-top:0.5rem;" onclick="submitDecision('${d.id}')" id="dsub-${d.id}" ${selectedOpts[d.id] === undefined ? 'disabled' : ''}>Submit Answer</button>`;
     }
@@ -1151,9 +1223,11 @@ async function submitDecision(decId) {
   const d = decisions.find(x => x.id === decId);
   if (!d || selectedOpts[decId] === undefined) return;
   const opts = typeof d.options === 'string' ? JSON.parse(d.options) : d.options;
+  const chosen = opts[selectedOpts[decId]];
+  const responseText = typeof chosen === 'string' ? chosen : chosen.text;
   const note = (document.getElementById('dnote-' + decId) || {}).value || '';
   await sb.from('hub_decisions').update({
-    response: opts[selectedOpts[decId]],
+    response: responseText,
     response_note: note.trim() || null,
     response_date: new Date().toISOString()
   }).eq('id', decId);
