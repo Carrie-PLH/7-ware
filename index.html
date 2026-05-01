@@ -741,15 +741,16 @@
       </div>
       <!-- Homeowner sees current-stage card -->
       <div class="card homeowner-only" id="currentStageCard" style="display:none;">
-        <div style="display:flex;align-items:center;gap:1rem;">
-          <div id="stageRing" style="width:56px;height:56px;border-radius:50%;background:conic-gradient(var(--teal) 0%,var(--gray-light) 0%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <div style="width:42px;height:42px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;color:var(--teal-deep);" id="stageNum"></div>
-          </div>
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 4px var(--yellow-pale);flex-shrink:0;"></div>
           <div>
             <div style="font-size:0.72rem;color:var(--gray-mid);text-transform:uppercase;letter-spacing:0.5px;">Current Stage</div>
             <div style="font-size:1.1rem;font-weight:700;color:var(--teal-deep);margin-top:0.15rem;" id="stageName">Loading...</div>
-            <div style="font-size:0.78rem;color:var(--gray-mid);margin-top:0.1rem;" id="stageProgress"></div>
           </div>
+        </div>
+        <div id="stageNext" style="margin-top:0.6rem;font-size:0.82rem;color:var(--gray-mid);display:none;">
+          <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.3px;">Up Next:</span>
+          <span id="stageNextName" style="font-weight:500;color:var(--gray);margin-left:0.3rem;"></span>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
@@ -1323,15 +1324,15 @@ function renderTimeline() {
   const stageCard = document.getElementById('currentStageCard');
   if (stageCard && role === 'homeowner') {
     stageCard.style.display = '';
-    const pct = phases.length ? Math.round(((completed + 0.5) / phases.length) * 100) : 0;
-    const ring = document.getElementById('stageRing');
-    if (ring) ring.style.background = `conic-gradient(var(--teal) ${pct}%, var(--gray-light) ${pct}%)`;
-    const numEl = document.getElementById('stageNum');
-    if (numEl) numEl.textContent = cur ? `${curIdx + 1}/${phases.length}` : '--';
-    const nameEl = document.getElementById('stageName');
-    if (nameEl) nameEl.textContent = cur ? cur.name : 'In Progress';
-    const progEl = document.getElementById('stageProgress');
-    if (progEl) progEl.textContent = `${completed} of ${phases.length} phases complete`;
+    document.getElementById('stageName').textContent = cur ? cur.name : 'In Progress';
+    const nextPhase = curIdx >= 0 && curIdx < phases.length - 1 ? phases[curIdx + 1] : null;
+    const nextEl = document.getElementById('stageNext');
+    if (nextPhase) {
+      nextEl.style.display = '';
+      document.getElementById('stageNextName').textContent = nextPhase.name;
+    } else {
+      nextEl.style.display = 'none';
+    }
   }
 }
 
