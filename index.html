@@ -227,6 +227,7 @@
   .section { display: none; animation: fadeIn 0.3s ease; }
   .section.active { display: block; }
   .builder-hidden { display: none !important; }
+  .homeowner-hidden { display: none !important; }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
@@ -733,9 +734,23 @@
 
     <!-- DASHBOARD -->
     <div class="section active" id="sec-dashboard">
-      <div class="card">
+      <!-- Builder sees full timeline -->
+      <div class="card builder-only">
         <h3 style="margin-bottom:0.75rem;">Project Timeline</h3>
         <div class="timeline-track" id="timelineTrack"></div>
+      </div>
+      <!-- Homeowner sees current-stage card -->
+      <div class="card homeowner-only" id="currentStageCard" style="display:none;">
+        <div style="display:flex;align-items:center;gap:1rem;">
+          <div id="stageRing" style="width:56px;height:56px;border-radius:50%;background:conic-gradient(var(--teal) 0%,var(--gray-light) 0%);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <div style="width:42px;height:42px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;color:var(--teal-deep);" id="stageNum"></div>
+          </div>
+          <div>
+            <div style="font-size:0.72rem;color:var(--gray-mid);text-transform:uppercase;letter-spacing:0.5px;">Current Stage</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--teal-deep);margin-top:0.15rem;" id="stageName">Loading...</div>
+            <div style="font-size:0.78rem;color:var(--gray-mid);margin-top:0.1rem;" id="stageProgress"></div>
+          </div>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
         <div class="card" style="border-left:4px solid var(--teal);">
@@ -1085,6 +1100,10 @@ function enterApp() {
     if (role === 'builder') { el.classList.remove('builder-hidden'); }
     else { el.classList.add('builder-hidden'); }
   });
+  document.querySelectorAll('.homeowner-only').forEach(el => {
+    if (role === 'homeowner') { el.classList.remove('homeowner-hidden'); }
+    else { el.classList.add('homeowner-hidden'); }
+  });
   loadAll();
   setupRealtime();
   requestNotifyPermission();
@@ -1284,7 +1303,11 @@ function showSection(id, tab) {
 function renderTimeline() {
   const track = document.getElementById('timelineTrack');
   const cur = phases.find(p => p.status === 'current');
+  const curIdx = cur ? phases.indexOf(cur) : -1;
+  const completed = phases.filter(p => p.status === 'completed').length;
   document.getElementById('currentPhaseLabel').textContent = cur ? 'Currently: ' + cur.name : 'In Progress';
+
+  // Full timeline (builder)
   track.innerHTML = phases.map((p, i) => {
     const conn = i < phases.length - 1 ? `<div class="timeline-connector ${p.status}"></div>` : '';
     const clickable = role === 'builder' ? ' clickable' : '';
@@ -1295,6 +1318,21 @@ function renderTimeline() {
       <div class="timeline-label${p.status === 'current' ? ' current' : ''}">${p.name}</div>
     </div>`;
   }).join('');
+
+  // Current-stage card (homeowner)
+  const stageCard = document.getElementById('currentStageCard');
+  if (stageCard && role === 'homeowner') {
+    stageCard.style.display = '';
+    const pct = phases.length ? Math.round(((completed + 0.5) / phases.length) * 100) : 0;
+    const ring = document.getElementById('stageRing');
+    if (ring) ring.style.background = `conic-gradient(var(--teal) ${pct}%, var(--gray-light) ${pct}%)`;
+    const numEl = document.getElementById('stageNum');
+    if (numEl) numEl.textContent = cur ? `${curIdx + 1}/${phases.length}` : '--';
+    const nameEl = document.getElementById('stageName');
+    if (nameEl) nameEl.textContent = cur ? cur.name : 'In Progress';
+    const progEl = document.getElementById('stageProgress');
+    if (progEl) progEl.textContent = `${completed} of ${phases.length} phases complete`;
+  }
 }
 
 async function cyclePhase(id) {
