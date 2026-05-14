@@ -547,11 +547,7 @@
     font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.3px; color: var(--gray-mid); min-width: 70px;
   }
-  .paint-slot-label .upcharge-tag {
-    font-size: 0.6rem; color: var(--orange); font-weight: 700;
-    background: var(--orange-light); padding: 0.05rem 0.35rem;
-    border-radius: 4px; margin-left: 0.3rem;
-  }
+  /* upcharge-tag removed — no longer used */
   .paint-input {
     background: none; border: 1px solid transparent; padding: 0.2rem 0.4rem;
     font-size: 0.82rem; font-family: inherit; color: var(--gray-dark);
@@ -562,6 +558,13 @@
   .paint-input.paint-name { min-width: 120px; font-weight: 500; }
   .paint-input.paint-code { min-width: 80px; font-family: monospace; font-size: 0.78rem; }
   .paint-input.paint-mfg { min-width: 110px; color: var(--gray-mid); font-size: 0.78rem; }
+  .paint-finish-select {
+    padding: 0.2rem 0.4rem; border: 1px solid transparent; border-radius: 4px;
+    font-size: 0.78rem; font-family: inherit; color: var(--gray-dark);
+    background: none; min-width: 100px; transition: border-color 0.15s; cursor: pointer;
+  }
+  .paint-finish-select:hover { border-color: var(--gray-light); }
+  .paint-finish-select:focus { border-color: var(--teal); outline: none; background: white; }
   .paint-confirm-btn {
     font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px;
     border: 1px solid var(--gray-light); background: white; cursor: pointer;
@@ -571,8 +574,8 @@
   .paint-confirm-btn.confirmed { background: var(--green-pale); color: var(--green); border-color: var(--green); font-weight: 600; }
 
   .paint-room-row {
-    display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 0;
-    border-bottom: 1px solid var(--gray-bg);
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0;
+    border-bottom: 1px solid var(--gray-bg); flex-wrap: wrap;
   }
   .paint-room-row:last-child { border-bottom: none; }
   .paint-room-name { flex: 1; font-size: 0.88rem; font-weight: 500; }
@@ -928,13 +931,13 @@
 
       <div class="card">
         <h3 style="margin-bottom:0.5rem;">Color Palette</h3>
-        <p style="font-size:0.8rem;color:var(--gray-mid);margin-bottom:1rem;">Define up to 5 wall colors (included in contract), plus up to 3 additional colors (upcharge). One trim color.</p>
+        <p style="font-size:0.8rem;color:var(--gray-mid);margin-bottom:1rem;">Define up to 5 wall colors and up to 3 trim colors. Select a finish for each.</p>
         <div id="paintPalette"><div class="loading-overlay"><span class="spinner"></span></div></div>
       </div>
 
       <div class="card" style="margin-top:1rem;">
         <h3 style="margin-bottom:0.5rem;">Room Assignments</h3>
-        <p style="font-size:0.8rem;color:var(--gray-mid);margin-bottom:1rem;">Assign a wall color to each room. Trim color applies throughout.</p>
+        <p style="font-size:0.8rem;color:var(--gray-mid);margin-bottom:1rem;">Assign a wall color to each room. Trim colors are shown in the palette above.</p>
         <div id="paintRooms"><div class="loading-overlay"><span class="spinner"></span></div></div>
       </div>
 
@@ -2004,11 +2007,14 @@ function renderPaintPalette() {
   const trim = paintPalette.filter(p => p.slot_type === 'trim');
 
   let html = '';
-  walls.forEach((slot, i) => {
+  walls.forEach(slot => {
     html += paintSlotRow(slot, `Wall Color ${slot.slot_number}`);
   });
+  if (trim.length) {
+    html += '<div style="border-top:1px solid var(--gray-bg);margin:0.75rem 0;"></div>';
+  }
   trim.forEach(slot => {
-    html += paintSlotRow(slot, 'Trim Color');
+    html += paintSlotRow(slot, `Trim Color ${slot.slot_number}`);
   });
 
   el.innerHTML = html;
@@ -2016,19 +2022,26 @@ function renderPaintPalette() {
 
 function paintSlotRow(slot, label) {
   const hex = slot.hex_value || '#ffffff';
-  const upcharge = slot.is_upcharge ? '<span class="upcharge-tag">upcharge</span>' : '';
   const confirmedClass = slot.confirmed ? ' confirmed' : '';
   const confirmedText = slot.confirmed ? 'Confirmed' : 'Confirm';
+  const finishOptions = ['flat/matte', 'eggshell', 'satin', 'semi-gloss', 'high-gloss'];
+  const finishHtml = finishOptions.map(f =>
+    `<option value="${f}"${slot.finish === f ? ' selected' : ''}>${f.charAt(0).toUpperCase() + f.slice(1)}</option>`
+  ).join('');
 
   return `<div class="paint-slot" data-slot-id="${slot.id}">
     <div class="paint-swatch" style="background:${hex};" title="Click to pick color">
       <input type="color" value="${hex}" onchange="updatePaintSlot('${slot.id}','hex_value',this.value)">
     </div>
     <div class="paint-slot-info">
-      <div class="paint-slot-label">${label} ${upcharge}</div>
+      <div class="paint-slot-label">${label}</div>
       <input class="paint-input paint-name" placeholder="Color name" value="${escAttr(slot.color_name || '')}" onchange="updatePaintSlot('${slot.id}','color_name',this.value)">
       <input class="paint-input paint-code" placeholder="Code" value="${escAttr(slot.paint_code || '')}" onchange="updatePaintSlot('${slot.id}','paint_code',this.value)">
       <input class="paint-input paint-mfg" placeholder="Manufacturer" value="${escAttr(slot.manufacturer || '')}" onchange="updatePaintSlot('${slot.id}','manufacturer',this.value)">
+      <select class="paint-finish-select" onchange="updatePaintSlot('${slot.id}','finish',this.value)">
+        <option value="">Finish...</option>
+        ${finishHtml}
+      </select>
       <button class="paint-confirm-btn${confirmedClass}" onclick="confirmPaintSlot('${slot.id}', ${!slot.confirmed})">${confirmedText}</button>
     </div>
   </div>`;
@@ -2068,36 +2081,64 @@ function renderPaintRooms() {
     return;
   }
 
-  // Build color options from palette (only wall colors with a name)
-  const defined = paintPalette.filter(p => p.slot_type === 'wall' && p.color_name);
+  // Build color options from palette
+  const wallColors = paintPalette.filter(p => p.slot_type === 'wall' && p.color_name);
+  const trimColors = paintPalette.filter(p => p.slot_type === 'trim' && p.color_name);
 
-  el.innerHTML = paintRooms.map(room => {
-    const assigned = paintPalette.find(p => p.id === room.palette_id);
-    const dotColor = assigned ? (assigned.hex_value || '#ddd') : '#ddd';
+  // Header row
+  let html = '<div class="paint-room-row" style="border-bottom:2px solid var(--gray-bg);padding-bottom:0.4rem;">';
+  html += '<div style="width:20px;"></div>';
+  html += '<div class="paint-room-name" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:var(--gray-mid);font-weight:600;">Room</div>';
+  html += '<div style="min-width:160px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:var(--gray-mid);font-weight:600;">Wall Color</div>';
+  html += '<div style="width:20px;"></div>';
+  html += '<div style="min-width:160px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:var(--gray-mid);font-weight:600;">Trim Color</div>';
+  html += '<div style="min-width:100px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:var(--gray-mid);font-weight:600;">Notes</div>';
+  html += '</div>';
 
-    const opts = defined.map(p => {
+  html += paintRooms.map(room => {
+    // Wall color
+    const wallAssigned = paintPalette.find(p => p.id === room.palette_id);
+    const wallDot = wallAssigned ? (wallAssigned.hex_value || '#ddd') : '#ddd';
+    const wallOpts = wallColors.map(p => {
       const sel = room.palette_id === p.id ? ' selected' : '';
-      return `<option value="${p.id}"${sel}>${esc(p.color_name)}${p.paint_code ? ' (' + esc(p.paint_code) + ')' : ''}${p.is_upcharge ? ' *' : ''}</option>`;
+      return `<option value="${p.id}"${sel}>${esc(p.color_name)}${p.paint_code ? ' (' + esc(p.paint_code) + ')' : ''}</option>`;
+    }).join('');
+
+    // Trim color
+    const trimAssigned = paintPalette.find(p => p.id === room.trim_palette_id);
+    const trimDot = trimAssigned ? (trimAssigned.hex_value || '#ddd') : '#ddd';
+    const trimOpts = trimColors.map(p => {
+      const sel = room.trim_palette_id === p.id ? ' selected' : '';
+      return `<option value="${p.id}"${sel}>${esc(p.color_name)}${p.paint_code ? ' (' + esc(p.paint_code) + ')' : ''}</option>`;
     }).join('');
 
     return `<div class="paint-room-row">
-      <div class="paint-room-dot" style="background:${dotColor};"></div>
+      <div class="paint-room-dot" style="background:${wallDot};"></div>
       <div class="paint-room-name">${esc(room.room_name)}</div>
-      <select class="paint-room-select" onchange="updatePaintRoom('${room.id}',this.value)">
-        <option value="">-- select --</option>
-        ${opts}
+      <select class="paint-room-select" onchange="updatePaintRoom('${room.id}','palette_id',this.value)">
+        <option value="">-- wall --</option>
+        ${wallOpts}
+      </select>
+      <div class="paint-room-dot" style="background:${trimDot};border:1px solid #ccc;"></div>
+      <select class="paint-room-select" onchange="updatePaintRoom('${room.id}','trim_palette_id',this.value)">
+        <option value="">-- trim --</option>
+        ${trimOpts}
       </select>
       <input class="paint-room-note" placeholder="Notes" value="${escAttr(room.notes || '')}" onchange="updatePaintRoomNote('${room.id}',this.value)">
     </div>`;
   }).join('');
+
+  el.innerHTML = html;
 }
 
 let paintRoomTimer = {};
-async function updatePaintRoom(id, paletteId) {
+async function updatePaintRoom(id, field, paletteId) {
   const val = paletteId || null;
-  await sb.from('hub_paint_rooms').update({ palette_id: val }).eq('id', id);
+  const update = {};
+  update[field] = val;
+  await sb.from('hub_paint_rooms').update(update).eq('id', id);
   const room = paintRooms.find(r => r.id === id);
-  if (room) { room.palette_id = val; renderPaintRooms(); renderPaintSummary(); }
+  if (room) { room[field] = val; renderPaintRooms(); renderPaintSummary(); }
 }
 
 async function updatePaintRoomNote(id, value) {
@@ -2113,61 +2154,89 @@ function renderPaintSummary() {
   const el = document.getElementById('paintSummary');
   if (!paintPalette.length) { el.innerHTML = ''; return; }
 
-  // Group rooms by palette_id
-  const groups = {};
+  // Group rooms by wall palette_id
+  const wallGroups = {};
   paintRooms.forEach(room => {
     if (!room.palette_id) return;
-    if (!groups[room.palette_id]) groups[room.palette_id] = [];
-    groups[room.palette_id].push(room);
+    if (!wallGroups[room.palette_id]) wallGroups[room.palette_id] = [];
+    wallGroups[room.palette_id].push(room);
   });
 
-  const unassigned = paintRooms.filter(r => !r.palette_id);
+  // Group rooms by trim palette_id
+  const trimGroups = {};
+  paintRooms.forEach(room => {
+    if (!room.trim_palette_id) return;
+    if (!trimGroups[room.trim_palette_id]) trimGroups[room.trim_palette_id] = [];
+    trimGroups[room.trim_palette_id].push(room);
+  });
+
+  const wallUnassigned = paintRooms.filter(r => !r.palette_id);
+  const trimUnassigned = paintRooms.filter(r => !r.trim_palette_id);
 
   // Wall colors
   const walls = paintPalette.filter(p => p.slot_type === 'wall' && p.color_name);
-  const trim = paintPalette.find(p => p.slot_type === 'trim' && p.color_name);
+  const trims = paintPalette.filter(p => p.slot_type === 'trim' && p.color_name);
 
-  if (!walls.length && !trim) {
+  if (!walls.length && !trims.length) {
     el.innerHTML = '<p style="color:var(--gray-mid);font-size:0.85rem;">Define colors in the palette above to see the summary.</p>';
     return;
   }
 
   let html = '';
 
-  walls.forEach(color => {
-    const rooms = groups[color.id] || [];
-    const hex = color.hex_value || '#ddd';
-    const upchargeNote = color.is_upcharge ? ' <span style="font-size:0.72rem;color:var(--amber);font-weight:600;">(upcharge)</span>' : '';
-    html += `<div class="paint-summary-group">
-      <div class="paint-summary-color">
-        <span class="paint-summary-dot" style="background:${hex};"></span>
-        <strong>${esc(color.color_name)}</strong>
-        ${color.paint_code ? '<span style="font-size:0.78rem;color:var(--gray-mid);margin-left:0.3rem;">' + esc(color.paint_code) + '</span>' : ''}
-        ${upchargeNote}
-      </div>
-      <div class="paint-summary-rooms">
-        ${rooms.length ? rooms.map(r => esc(r.room_name)).join(' &middot; ') : '<span style="color:var(--gray-mid);font-style:italic;">No rooms assigned</span>'}
-      </div>
-    </div>`;
-  });
+  if (walls.length) {
+    html += '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:var(--gray-mid);font-weight:600;margin-bottom:0.4rem;">Wall Colors</div>';
+    walls.forEach(color => {
+      const rooms = wallGroups[color.id] || [];
+      const hex = color.hex_value || '#ddd';
+      const finishNote = color.finish ? ' <span style="font-size:0.72rem;color:var(--gray-mid);">(' + esc(color.finish) + ')</span>' : '';
+      html += `<div class="paint-summary-group">
+        <div class="paint-summary-color">
+          <span class="paint-summary-dot" style="background:${hex};"></span>
+          <strong>${esc(color.color_name)}</strong>
+          ${color.paint_code ? '<span style="font-size:0.78rem;color:var(--gray-mid);margin-left:0.3rem;">' + esc(color.paint_code) + '</span>' : ''}
+          ${finishNote}
+        </div>
+        <div class="paint-summary-rooms">
+          ${rooms.length ? rooms.map(r => esc(r.room_name)).join(' &middot; ') : '<span style="color:var(--gray-mid);font-style:italic;">No rooms assigned</span>'}
+        </div>
+      </div>`;
+    });
 
-  if (trim) {
-    const hex = trim.hex_value || '#ddd';
-    html += `<div class="paint-summary-group">
-      <div class="paint-summary-color">
-        <span class="paint-summary-dot" style="background:${hex};border:1px solid #ccc;"></span>
-        <strong>${esc(trim.color_name)}</strong>
-        ${trim.paint_code ? '<span style="font-size:0.78rem;color:var(--gray-mid);margin-left:0.3rem;">' + esc(trim.paint_code) + '</span>' : ''}
-        <span style="font-size:0.72rem;color:var(--teal);font-weight:600;margin-left:0.3rem;">TRIM &mdash; all rooms</span>
-      </div>
-    </div>`;
+    if (wallUnassigned.length) {
+      html += `<div class="paint-summary-group" style="margin-top:0.3rem;">
+        <div style="font-size:0.75rem;color:var(--orange);font-weight:600;">Unassigned (wall)</div>
+        <div class="paint-summary-rooms">${wallUnassigned.map(r => esc(r.room_name)).join(' &middot; ')}</div>
+      </div>`;
+    }
   }
 
-  if (unassigned.length) {
-    html += `<div class="paint-summary-group" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px dashed var(--gray-light);">
-      <div style="font-size:0.78rem;color:var(--amber);font-weight:600;">Unassigned Rooms</div>
-      <div class="paint-summary-rooms">${unassigned.map(r => esc(r.room_name)).join(' &middot; ')}</div>
-    </div>`;
+  if (trims.length) {
+    html += '<div style="border-top:1px solid var(--gray-bg);margin:0.75rem 0;"></div>';
+    html += '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.4px;color:var(--gray-mid);font-weight:600;margin-bottom:0.4rem;">Trim Colors</div>';
+    trims.forEach(trim => {
+      const rooms = trimGroups[trim.id] || [];
+      const hex = trim.hex_value || '#ddd';
+      const finishNote = trim.finish ? ' <span style="font-size:0.72rem;color:var(--gray-mid);">(' + esc(trim.finish) + ')</span>' : '';
+      html += `<div class="paint-summary-group">
+        <div class="paint-summary-color">
+          <span class="paint-summary-dot" style="background:${hex};border:1px solid #ccc;"></span>
+          <strong>${esc(trim.color_name)}</strong>
+          ${trim.paint_code ? '<span style="font-size:0.78rem;color:var(--gray-mid);margin-left:0.3rem;">' + esc(trim.paint_code) + '</span>' : ''}
+          ${finishNote}
+        </div>
+        <div class="paint-summary-rooms">
+          ${rooms.length ? rooms.map(r => esc(r.room_name)).join(' &middot; ') : '<span style="color:var(--gray-mid);font-style:italic;">No rooms assigned</span>'}
+        </div>
+      </div>`;
+    });
+
+    if (trimUnassigned.length) {
+      html += `<div class="paint-summary-group" style="margin-top:0.3rem;">
+        <div style="font-size:0.75rem;color:var(--orange);font-weight:600;">Unassigned (trim)</div>
+        <div class="paint-summary-rooms">${trimUnassigned.map(r => esc(r.room_name)).join(' &middot; ')}</div>
+      </div>`;
+    }
   }
 
   el.innerHTML = html;
