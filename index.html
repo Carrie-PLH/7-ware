@@ -605,6 +605,32 @@
   .paint-summary-dot {
     width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);
   }
+  .art-blocking-row {
+    display: grid; grid-template-columns: 2rem 1fr 5rem 5rem 1fr; gap: 0.5rem;
+    align-items: center; padding: 0.45rem 0; border-bottom: 1px solid var(--gray-bg);
+  }
+  .art-blocking-row:last-child { border-bottom: none; }
+  .art-blocking-num {
+    font-size: 0.75rem; font-weight: 600; color: var(--gray-mid); text-align: center;
+  }
+  .art-blocking-input {
+    background: none; border: 1px solid transparent; padding: 0.3rem 0.5rem;
+    font-size: 0.84rem; font-family: inherit; color: var(--gray-dark);
+    border-radius: 4px; transition: border-color 0.15s; width: 100%;
+  }
+  .art-blocking-input:hover { border-color: var(--gray-light); }
+  .art-blocking-input:focus { border-color: var(--teal); outline: none; background: white; }
+  .art-blocking-input::placeholder { color: var(--gray-light); }
+  .art-blocking-input.dim { font-size: 0.78rem; text-align: center; }
+  .art-blocking-header {
+    display: grid; grid-template-columns: 2rem 1fr 5rem 5rem 1fr; gap: 0.5rem;
+    padding-bottom: 0.4rem; border-bottom: 2px solid var(--gray-bg);
+  }
+  .art-blocking-header span {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--gray-mid); font-weight: 600;
+  }
+
   .paint-summary-rooms {
     padding-left: 1.6rem; font-size: 0.82rem; color: var(--gray); line-height: 1.6;
   }
@@ -873,6 +899,21 @@
 
     <!-- SELECTIONS -->
     <div class="section" id="sec-selections">
+
+      <!-- ART BLOCKING -->
+      <h3 style="margin-bottom:0.75rem;font-size:1.1rem;color:var(--teal-deep);">Art Blocking</h3>
+      <div class="card">
+        <p style="font-size:0.8rem;color:var(--gray-mid);margin-bottom:1rem;">Please indicate where you would like blocking installed for hanging large artwork. Provide the art dimensions (width x height in inches) and the location in the house.</p>
+        <div class="art-blocking-header">
+          <span>#</span>
+          <span>Location</span>
+          <span style="text-align:center;">Width</span>
+          <span style="text-align:center;">Height</span>
+          <span>Notes</span>
+        </div>
+        <div id="artBlockingBody"><div class="loading-overlay"><span class="spinner"></span></div></div>
+      </div>
+
       <div class="admin-panel builder-only">
         <h3>Log a Selection</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
@@ -1126,7 +1167,7 @@ function enterApp() {
 //  DATA LOADING
 // ================================================================
 async function loadAll() {
-  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes(), loadMessages(), loadPaintPalette(), loadPaintRooms()]);
+  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes(), loadMessages(), loadPaintPalette(), loadPaintRooms(), loadArtBlocking()]);
   renderDashboard();
   loadNotifyEmail();
 }
@@ -1199,6 +1240,7 @@ function setupRealtime() {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_paint_palette' }, () => { loadPaintPalette(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_paint_rooms' }, () => { loadPaintRooms(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_art_blocking' }, () => { loadArtBlocking(); })
     .subscribe();
 }
 
@@ -1979,6 +2021,49 @@ async function deleteLt(id) {
 }
 
 function escAttr(s) { return s ? s.replace(/"/g, '&quot;').replace(/'/g, '&#39;') : ''; }
+
+// ================================================================
+//  ART BLOCKING
+// ================================================================
+let artBlocking = [];
+
+async function loadArtBlocking() {
+  const { data } = await sb.from('hub_art_blocking').select('*').order('sort_order');
+  if (data) { artBlocking = data; renderArtBlocking(); }
+}
+
+function renderArtBlocking() {
+  const el = document.getElementById('artBlockingBody');
+  if (!artBlocking.length) {
+    el.innerHTML = '<p style="color:var(--gray-mid);font-size:0.85rem;padding:0.5rem 0;">No rows configured.</p>';
+    return;
+  }
+  el.innerHTML = artBlocking.map((row, i) => `
+    <div class="art-blocking-row">
+      <div class="art-blocking-num">${i + 1}</div>
+      <input class="art-blocking-input" placeholder="e.g., Living room south wall" value="${escAttr(row.location || '')}" onchange="updateArtBlocking('${row.id}','location',this.value)">
+      <input class="art-blocking-input dim" type="number" min="0" placeholder="W&quot;" value="${row.art_width != null ? row.art_width : ''}" onchange="updateArtBlocking('${row.id}','art_width',this.value)">
+      <input class="art-blocking-input dim" type="number" min="0" placeholder="H&quot;" value="${row.art_height != null ? row.art_height : ''}" onchange="updateArtBlocking('${row.id}','art_height',this.value)">
+      <input class="art-blocking-input" placeholder="Notes" value="${escAttr(row.notes || '')}" onchange="updateArtBlocking('${row.id}','notes',this.value)">
+    </div>
+  `).join('');
+}
+
+let artBlockingTimers = {};
+function updateArtBlocking(id, field, value) {
+  clearTimeout(artBlockingTimers[id + field]);
+  artBlockingTimers[id + field] = setTimeout(async () => {
+    const update = {};
+    if (field === 'art_width' || field === 'art_height') {
+      update[field] = value === '' ? null : parseFloat(value);
+    } else {
+      update[field] = value || null;
+    }
+    await sb.from('hub_art_blocking').update(update).eq('id', id);
+    const row = artBlocking.find(r => r.id === id);
+    if (row) { row[field] = update[field]; }
+  }, 500);
+}
 
 // ================================================================
 //  PAINT SELECTIONS
