@@ -10,21 +10,21 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root {
-    --teal-deep: #5B3A1E;
-    --teal: #8B6E4B;
-    --teal-light: #B89A72;
-    --teal-pale: #F5ECD8;
+    --teal-deep: #2D4F5E;
+    --teal: #4D8296;
+    --teal-light: #7BAFC2;
+    --teal-pale: #E3EFF5;
     --green: #5C7F5A;
     --green-light: #7FA47A;
     --green-pale: #E8F0E4;
     --yellow: #C9A036;
     --yellow-light: #DEBB5C;
     --yellow-pale: #FBF3DC;
-    --gray-dark: #2A2118;
-    --gray: #4A3F34;
-    --gray-mid: #7A6E60;
-    --gray-light: #C4B9A8;
-    --gray-bg: #F2EDE6;
+    --gray-dark: #252A2E;
+    --gray: #414850;
+    --gray-mid: #6B7680;
+    --gray-light: #B5BFC8;
+    --gray-bg: #EFF2F4;
     --white: #ffffff;
     --red: #be3a2e;
     --red-light: #fdecea;
@@ -52,7 +52,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(160deg, #3A2410 0%, var(--teal-deep) 30%, var(--teal) 60%, #7EA8C4 100%);
+    background: linear-gradient(160deg, #1A3340 0%, var(--teal-deep) 30%, var(--teal) 60%, #7BAFC2 100%);
     position: relative;
     overflow: hidden;
   }
@@ -100,7 +100,7 @@
     border: none; border-radius: 10px; font-size: 1rem; font-weight: 600;
     cursor: pointer; transition: all 0.25s; letter-spacing: 0.3px;
   }
-  .login-box button:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(91,58,30,0.3); }
+  .login-box button:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45,79,94,0.3); }
   .login-box button:active { transform: translateY(0); }
   .login-error { color: var(--red); font-size: 0.85rem; margin-top: 0.5rem; display: none; }
 
@@ -110,7 +110,7 @@
 
   /* HEADER */
   .site-header {
-    background: linear-gradient(160deg, #3A2410 0%, var(--teal-deep) 40%, var(--teal) 80%);
+    background: linear-gradient(160deg, #1A3340 0%, var(--teal-deep) 40%, var(--teal) 80%);
     color: var(--white);
     padding: 1.75rem 2rem 1.5rem;
     position: relative;
@@ -129,7 +129,7 @@
     display: flex; align-items: center; gap: 1.25rem;
   }
   .site-header-mascot {
-    width: 80px; height: 80px; border-radius: 12px;
+    width: 130px; height: 130px; border-radius: 14px;
     object-fit: cover; border: 2px solid rgba(255,255,255,0.25);
     flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
@@ -279,7 +279,7 @@
     letter-spacing: 0.15px;
   }
   .btn-primary { background: var(--teal-deep); color: white; }
-  .btn-primary:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(91,58,30,0.2); }
+  .btn-primary:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(45,79,94,0.2); }
   .btn-primary:active { transform: translateY(0); }
   .btn-primary:disabled { background: var(--gray-light); cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-secondary { background: var(--white); color: var(--gray); border: 1px solid var(--gray-light); }
@@ -707,7 +707,7 @@
     .site-header { padding: 1.25rem 1rem; }
     .site-header h1 { font-size: 1.5rem; }
     .site-header .subtitle { font-size: 0.8rem; }
-    .site-header-mascot { width: 56px; height: 56px; border-radius: 8px; }
+    .site-header-mascot { width: 90px; height: 90px; border-radius: 10px; }
     .header-right { position: static; margin-top: 0.6rem; }
     .nav-tab { padding: 0.7rem 0.85rem; font-size: 0.78rem; }
     .main-content { padding: 1rem 0.75rem 2rem; }
@@ -736,7 +736,7 @@
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-box">
-    <img src="mascot.jpg" alt="Portal Potty" style="width:100px;height:100px;border-radius:14px;object-fit:cover;margin-bottom:0.75rem;box-shadow:0 4px 16px rgba(0,0,0,0.15);" onerror="this.outerHTML='<div style=\'font-size:2rem;margin-bottom:0.5rem;opacity:0.8;\'>&#9678;</div>'">
+    <img src="mascot.jpg" alt="Portal Potty" style="width:160px;height:160px;border-radius:16px;object-fit:cover;margin-bottom:0.75rem;box-shadow:0 4px 16px rgba(0,0,0,0.15);" onerror="this.outerHTML='<div style=\'font-size:2rem;margin-bottom:0.5rem;opacity:0.8;\'>&#9678;</div>'">
     <h1>7 Ware Lane</h1>
     <p class="login-sub">Portal Potty</p>
     <input type="password" id="passwordInput" placeholder="Enter access code" autocomplete="off" onkeydown="if(event.key==='Enter')attemptLogin()">
