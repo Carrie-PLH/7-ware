@@ -3,28 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>7 Ware Lane — Project Hub</title>
+<title>7 Ware Lane — Portal Potty</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root {
-    --teal-deep: #14616f;
-    --teal: #1e8a9e;
-    --teal-light: #4db8cc;
-    --teal-pale: #e1f4f8;
-    --green: #3d7f52;
-    --green-light: #5fac75;
-    --green-pale: #e4f3e9;
-    --yellow: #dbb73e;
-    --yellow-light: #ebd06a;
-    --yellow-pale: #fdf6dc;
-    --gray-dark: #1a2024;
-    --gray: #3d4852;
-    --gray-mid: #6b7b86;
-    --gray-light: #c4cdd4;
-    --gray-bg: #f0f3f5;
+    --teal-deep: #5B3A1E;
+    --teal: #8B6E4B;
+    --teal-light: #B89A72;
+    --teal-pale: #F5ECD8;
+    --green: #5C7F5A;
+    --green-light: #7FA47A;
+    --green-pale: #E8F0E4;
+    --yellow: #C9A036;
+    --yellow-light: #DEBB5C;
+    --yellow-pale: #FBF3DC;
+    --gray-dark: #2A2118;
+    --gray: #4A3F34;
+    --gray-mid: #7A6E60;
+    --gray-light: #C4B9A8;
+    --gray-bg: #F2EDE6;
     --white: #ffffff;
     --red: #be3a2e;
     --red-light: #fdecea;
@@ -52,7 +52,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(160deg, #0f3d47 0%, var(--teal-deep) 30%, var(--teal) 60%, var(--green) 100%);
+    background: linear-gradient(160deg, #3A2410 0%, var(--teal-deep) 30%, var(--teal) 60%, #7EA8C4 100%);
     position: relative;
     overflow: hidden;
   }
@@ -100,7 +100,7 @@
     border: none; border-radius: 10px; font-size: 1rem; font-weight: 600;
     cursor: pointer; transition: all 0.25s; letter-spacing: 0.3px;
   }
-  .login-box button:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,138,158,0.3); }
+  .login-box button:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(91,58,30,0.3); }
   .login-box button:active { transform: translateY(0); }
   .login-error { color: var(--red); font-size: 0.85rem; margin-top: 0.5rem; display: none; }
 
@@ -110,7 +110,7 @@
 
   /* HEADER */
   .site-header {
-    background: linear-gradient(160deg, #0f3d47 0%, var(--teal-deep) 40%, var(--teal) 80%);
+    background: linear-gradient(160deg, #3A2410 0%, var(--teal-deep) 40%, var(--teal) 80%);
     color: var(--white);
     padding: 1.75rem 2rem 1.5rem;
     position: relative;
@@ -124,6 +124,14 @@
     background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
     border-radius: 50%;
     pointer-events: none;
+  }
+  .site-header-inner {
+    display: flex; align-items: center; gap: 1.25rem;
+  }
+  .site-header-mascot {
+    width: 80px; height: 80px; border-radius: 12px;
+    object-fit: cover; border: 2px solid rgba(255,255,255,0.25);
+    flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   .site-header h1 {
     font-family: 'Playfair Display', Georgia, serif;
@@ -271,7 +279,7 @@
     letter-spacing: 0.15px;
   }
   .btn-primary { background: var(--teal-deep); color: white; }
-  .btn-primary:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(30,138,158,0.2); }
+  .btn-primary:hover { background: var(--teal); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(91,58,30,0.2); }
   .btn-primary:active { transform: translateY(0); }
   .btn-primary:disabled { background: var(--gray-light); cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-secondary { background: var(--white); color: var(--gray); border: 1px solid var(--gray-light); }
@@ -699,6 +707,7 @@
     .site-header { padding: 1.25rem 1rem; }
     .site-header h1 { font-size: 1.5rem; }
     .site-header .subtitle { font-size: 0.8rem; }
+    .site-header-mascot { width: 56px; height: 56px; border-radius: 8px; }
     .header-right { position: static; margin-top: 0.6rem; }
     .nav-tab { padding: 0.7rem 0.85rem; font-size: 0.78rem; }
     .main-content { padding: 1rem 0.75rem 2rem; }
@@ -727,9 +736,9 @@
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-box">
-    <div style="font-size:2rem;margin-bottom:0.5rem;opacity:0.8;">&#9678;</div>
+    <img src="mascot.jpg" alt="Portal Potty" style="width:100px;height:100px;border-radius:14px;object-fit:cover;margin-bottom:0.75rem;box-shadow:0 4px 16px rgba(0,0,0,0.15);" onerror="this.outerHTML='<div style=\'font-size:2rem;margin-bottom:0.5rem;opacity:0.8;\'>&#9678;</div>'">
     <h1>7 Ware Lane</h1>
-    <p class="login-sub">Project Hub</p>
+    <p class="login-sub">Portal Potty</p>
     <input type="password" id="passwordInput" placeholder="Enter access code" autocomplete="off" onkeydown="if(event.key==='Enter')attemptLogin()">
     <button onclick="attemptLogin()">Enter</button>
     <div class="login-error" id="loginError">Invalid access code. Please try again.</div>
@@ -739,8 +748,13 @@
 <!-- APP -->
 <div class="app" id="app">
   <div class="site-header">
-    <h1>7 Ware Lane</h1>
-    <p class="subtitle">Project Hub</p>
+    <div class="site-header-inner">
+      <img class="site-header-mascot" src="mascot.jpg" alt="Portal Potty mascot" onerror="this.style.display='none'">
+      <div>
+        <h1>7 Ware Lane</h1>
+        <p class="subtitle">Portal Potty</p>
+      </div>
+    </div>
     <div class="phase-badge" id="currentPhaseLabel">Loading...</div>
     <div class="header-right">
       <span class="role-label" id="roleLabel"></span>
