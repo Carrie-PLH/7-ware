@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>7 Ware Lane — Portal Potty</title>
+<title>7 Ware Lane — Portal Party</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
@@ -366,6 +366,34 @@
     transition: transform 0.15s, box-shadow 0.15s;
   }
   .update-photo:hover { transform: scale(1.03); box-shadow: var(--shadow-md); }
+
+  /* COMMENTS ON UPDATES */
+  .update-comments { margin-top: 0.75rem; border-top: 1px solid var(--gray-bg); padding-top: 0.5rem; }
+  .update-comment {
+    display: flex; gap: 0.5rem; padding: 0.4rem 0; font-size: 0.82rem; line-height: 1.5;
+  }
+  .comment-role {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+    padding: 0.1rem 0.4rem; border-radius: 8px; white-space: nowrap; height: fit-content; margin-top: 0.15rem;
+  }
+  .comment-role.builder { background: var(--teal-pale); color: var(--teal-deep); }
+  .comment-role.homeowner { background: var(--green-pale); color: var(--green); }
+  .comment-body { color: var(--gray); white-space: pre-wrap; }
+  .comment-time { font-size: 0.68rem; color: var(--gray-light); margin-left: auto; white-space: nowrap; margin-top: 0.15rem; }
+  .comment-form { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+  .comment-input {
+    flex: 1; border: 1px solid var(--gray-light); border-radius: var(--radius-sm);
+    padding: 0.35rem 0.6rem; font-size: 0.82rem; font-family: inherit; resize: none;
+    min-height: 1.8rem; max-height: 4rem;
+  }
+  .comment-input:focus { outline: none; border-color: var(--teal); }
+  .comment-submit {
+    background: var(--teal); color: white; border: none; border-radius: var(--radius-sm);
+    padding: 0.35rem 0.7rem; font-size: 0.78rem; cursor: pointer; font-weight: 600; white-space: nowrap;
+  }
+  .comment-submit:hover { background: var(--teal-deep); }
+  .comment-toggle { font-size: 0.76rem; color: var(--teal); cursor: pointer; margin-top: 0.4rem; background: none; border: none; padding: 0; font-family: inherit; }
+  .comment-toggle:hover { text-decoration: underline; }
 
   /* DECISION CARDS */
   .decision-card {
@@ -736,9 +764,9 @@
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-box">
-    <img src="mascot.jpg" alt="Portal Potty" style="width:160px;height:160px;border-radius:16px;object-fit:cover;margin-bottom:0.75rem;box-shadow:0 4px 16px rgba(0,0,0,0.15);" onerror="this.outerHTML='<div style=\'font-size:2rem;margin-bottom:0.5rem;opacity:0.8;\'>&#9678;</div>'">
+    <img src="mascot.jpg" alt="Portal Party" style="width:160px;height:160px;border-radius:16px;object-fit:cover;margin-bottom:0.75rem;box-shadow:0 4px 16px rgba(0,0,0,0.15);" onerror="this.outerHTML='<div style=\'font-size:2rem;margin-bottom:0.5rem;opacity:0.8;\'>&#9678;</div>'">
     <h1>7 Ware Lane</h1>
-    <p class="login-sub">Portal Potty</p>
+    <p class="login-sub">Portal Party</p>
     <input type="password" id="passwordInput" placeholder="Enter access code" autocomplete="off" onkeydown="if(event.key==='Enter')attemptLogin()">
     <button onclick="attemptLogin()">Enter</button>
     <div class="login-error" id="loginError">Invalid access code. Please try again.</div>
@@ -749,10 +777,10 @@
 <div class="app" id="app">
   <div class="site-header">
     <div class="site-header-inner">
-      <img class="site-header-mascot" src="mascot.jpg" alt="Portal Potty mascot" onerror="this.style.display='none'">
+      <img class="site-header-mascot" src="mascot.jpg" alt="Portal Party mascot" onerror="this.style.display='none'">
       <div>
         <h1>7 Ware Lane</h1>
-        <p class="subtitle">Portal Potty</p>
+        <p class="subtitle">Portal Party</p>
       </div>
     </div>
     <div class="phase-badge" id="currentPhaseLabel">Loading...</div>
@@ -764,7 +792,7 @@
 
   <div class="nav-bar">
     <div class="nav-tab active" data-section="dashboard" onclick="showSection('dashboard',this)">Dashboard</div>
-    <div class="nav-tab" data-section="updates" onclick="showSection('updates',this)">Updates <span class="badge" id="updatesBadge" style="display:none">0</span></div>
+    <div class="nav-tab" data-section="updates" onclick="showSection('updates',this)">Iggy's Updates <span class="badge" id="updatesBadge" style="display:none">0</span></div>
     <div class="nav-tab" data-section="decisions" onclick="showSection('decisions',this)">Decisions <span class="badge" id="decisionBadge" style="display:none">0</span></div>
     <div class="nav-tab" data-section="selections" onclick="showSection('selections',this)">Selections</div>
     <div class="nav-tab" data-section="photos" onclick="showSection('photos',this)">Photos</div>
@@ -833,12 +861,8 @@
       <div class="admin-panel builder-only">
         <h3>Post an Update</h3>
         <div class="form-group">
-          <label>Phase</label>
-          <select class="form-select phase-select" id="updatePhase"></select>
-        </div>
-        <div class="form-group">
           <label>Update</label>
-          <textarea class="form-textarea" id="updateText" placeholder="What happened today? What's coming up next?"></textarea>
+          <textarea class="form-textarea" id="updateText" placeholder="What's happening this week? What's coming up next?"></textarea>
         </div>
         <div class="form-group">
           <label>Photos (optional)</label>
@@ -1112,6 +1136,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let role = null; // 'builder' or 'homeowner'
 let phases = [];
 let updates = [];
+let updateComments = {}; // keyed by update_id
 let decisions = [];
 let selections = [];
 let photos = [];
@@ -1181,7 +1206,7 @@ function enterApp() {
 //  DATA LOADING
 // ================================================================
 async function loadAll() {
-  await Promise.all([loadPhases(), loadUpdates(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes(), loadMessages(), loadPaintPalette(), loadPaintRooms(), loadArtBlocking()]);
+  await Promise.all([loadPhases(), loadUpdates(), loadUpdateComments(), loadDecisions(), loadSelections(), loadPhotos(), loadContacts(), loadLighting(), loadCostNotes(), loadMessages(), loadPaintPalette(), loadPaintRooms(), loadArtBlocking()]);
   renderDashboard();
   loadNotifyEmail();
 }
@@ -1255,6 +1280,7 @@ function setupRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_paint_palette' }, () => { loadPaintPalette(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_paint_rooms' }, () => { loadPaintRooms(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_art_blocking' }, () => { loadArtBlocking(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hub_update_comments' }, () => { loadUpdateComments().then(() => renderUpdates()); })
     .subscribe();
 }
 
@@ -1449,12 +1475,11 @@ async function postUpdate() {
   const btn = document.getElementById('postUpdateBtn');
   btn.disabled = true; btn.textContent = 'Posting...';
 
-  const phaseId = document.getElementById('updatePhase').value;
   const pinned = document.getElementById('updatePinned').checked;
   const fileInput = document.getElementById('updatePhotos');
 
   // Insert update
-  const { data: upd, error } = await sb.from('hub_updates').insert({ phase_id: phaseId, body, pinned }).select().single();
+  const { data: upd, error } = await sb.from('hub_updates').insert({ body, pinned }).select().single();
   if (error) { alert('Error posting update'); btn.disabled = false; btn.textContent = 'Post Update'; return; }
 
   // Upload photos
@@ -1466,7 +1491,7 @@ async function postUpdate() {
         const { data: urlData } = sb.storage.from('hub-photos').getPublicUrl(path);
         await sb.from('hub_photos').insert({
           update_id: upd.id, storage_path: path, url: urlData.publicUrl,
-          room: '', phase_id: phaseId, caption: body.slice(0, 80)
+          room: '', caption: body.slice(0, 80)
         });
       }
     }
@@ -1494,19 +1519,20 @@ function renderUpdates() {
   });
 
   feed.innerHTML = sorted.map(u => {
-    const phaseName = (phases.find(p => p.id === u.phase_id) || {}).name || '';
     const uPhotos = photos.filter(p => p.update_id === u.id);
     const photosHtml = uPhotos.map(p => `<img class="update-photo" src="${p.url}" onclick="openLightbox('${p.url}')" alt="photo">`).join('');
     const del = role === 'builder' ? ` <button class="btn-danger" onclick="deleteUpdate('${u.id}')">✕</button>` : '';
+    const uComments = (updateComments[u.id] || []);
+    const commentsHtml = renderUpdateCommentsHtml(u.id, uComments);
     return `<div class="update-item${u.pinned ? ' pinned' : ''}">
       <div class="update-meta">
         <span>${fmtDate(u.created_at)}</span>
-        ${phaseName ? `<span class="update-phase-tag">${esc(phaseName)}</span>` : ''}
         ${u.pinned ? '<span style="font-size:0.73rem;">📌 Pinned</span>' : ''}
         ${del}
       </div>
       <div class="update-body">${esc(u.body)}</div>
       ${photosHtml ? '<div class="update-photos">' + photosHtml + '</div>' : ''}
+      ${commentsHtml}
     </div>`;
   }).join('');
 }
@@ -1522,6 +1548,84 @@ async function deleteUpdate(id) {
   await sb.from('hub_updates').delete().eq('id', id);
   await loadUpdates();
   await loadPhotos();
+}
+
+// ================================================================
+//  UPDATE COMMENTS
+// ================================================================
+async function loadUpdateComments() {
+  const { data } = await sb.from('hub_update_comments').select('*').order('created_at', { ascending: true });
+  updateComments = {};
+  if (data) {
+    data.forEach(c => {
+      if (!updateComments[c.update_id]) updateComments[c.update_id] = [];
+      updateComments[c.update_id].push(c);
+    });
+  }
+}
+
+function renderUpdateCommentsHtml(updateId, comments) {
+  const commentsList = comments.map(c => {
+    const roleLabel = c.role === 'builder' ? 'Builder' : 'Owner';
+    const roleClass = c.role === 'builder' ? 'builder' : 'homeowner';
+    const del = (role === c.role || role === 'builder') ? ` <button class="btn-danger" style="font-size:0.65rem;padding:0 0.3rem;" onclick="deleteUpdateComment('${c.id}','${updateId}')">✕</button>` : '';
+    return `<div class="update-comment">
+      <span class="comment-role ${roleClass}">${roleLabel}</span>
+      <span class="comment-body">${esc(c.body)}</span>
+      <span class="comment-time">${fmtDate(c.created_at)}${del}</span>
+    </div>`;
+  }).join('');
+
+  const toggleBtn = comments.length > 0
+    ? `<button class="comment-toggle" onclick="toggleComments('${updateId}')">${comments.length} comment${comments.length !== 1 ? 's' : ''}</button>`
+    : `<button class="comment-toggle" onclick="toggleComments('${updateId}')">Add a comment</button>`;
+
+  return `<div class="update-comments">
+    ${toggleBtn}
+    <div id="comments-${updateId}" style="display:none;">
+      ${commentsList}
+      <div class="comment-form">
+        <input class="comment-input" id="commentInput-${updateId}" placeholder="Add a comment..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();postUpdateComment('${updateId}');}">
+        <button class="comment-submit" onclick="postUpdateComment('${updateId}')">Reply</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleComments(updateId) {
+  const el = document.getElementById('comments-' + updateId);
+  if (el) {
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    if (el.style.display === 'block') {
+      const input = document.getElementById('commentInput-' + updateId);
+      if (input) input.focus();
+    }
+  }
+}
+
+async function postUpdateComment(updateId) {
+  const input = document.getElementById('commentInput-' + updateId);
+  const body = input.value.trim();
+  if (!body) return;
+  input.disabled = true;
+  const { error } = await sb.from('hub_update_comments').insert({ update_id: updateId, role, body });
+  if (error) { alert('Error posting comment'); input.disabled = false; return; }
+  input.value = '';
+  input.disabled = false;
+  await loadUpdateComments();
+  renderUpdates();
+  // Re-open the comments section we were in
+  const el = document.getElementById('comments-' + updateId);
+  if (el) el.style.display = 'block';
+}
+
+async function deleteUpdateComment(commentId, updateId) {
+  if (!confirm('Delete this comment?')) return;
+  await sb.from('hub_update_comments').delete().eq('id', commentId);
+  await loadUpdateComments();
+  renderUpdates();
+  const el = document.getElementById('comments-' + updateId);
+  if (el) el.style.display = 'block';
 }
 
 // ================================================================
